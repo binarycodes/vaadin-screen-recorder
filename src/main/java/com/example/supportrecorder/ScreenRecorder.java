@@ -10,7 +10,7 @@ import com.vaadin.flow.shared.Registration;
 
 @Tag("screen-recorder")
 @JsModule("./src/screen-recorder.ts")
-public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, RecorderStatus> {
+public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, String> {
 
     private boolean captureDownloadPending;
 
@@ -19,7 +19,7 @@ public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, 
     }
 
     private ScreenRecorder(boolean recordEnabled, boolean captureEnabled) {
-        super("status", RecorderStatus.IDLE, false);
+        super("status", RecorderStatus.IDLE.toClientValue(), false);
         getElement().setProperty("recordEnabled", recordEnabled);
         getElement().setProperty("captureEnabled", captureEnabled);
     }
@@ -74,9 +74,13 @@ public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, 
 
     @ClientCallable
     private void setStatusFromClient(String status) {
+        setModelValue(status, true);
         final RecorderStatus recorderStatus = RecorderStatus.fromClientValue(status);
-        setModelValue(recorderStatus, true);
         fireStatusEvent(recorderStatus);
+    }
+
+    public RecorderStatus getStatus() {
+        return RecorderStatus.fromClientValue(getValue());
     }
 
     private void fireStatusEvent(RecorderStatus status) {

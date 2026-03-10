@@ -36,26 +36,27 @@ class ScreenRecorder extends HTMLElement {
         position: fixed;
         inset: auto;
         z-index: 10000;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
+        font-size: var(--screen-recorder-font-size, 14px);
+        color: var(--screen-recorder-text-color, #f4f7fb);
       }
 
       [part~="shell"] {
         position: fixed;
-        top: 24px;
-        right: 24px;
+        top: var(--screen-recorder-shell-top, 24px);
+        right: var(--screen-recorder-shell-right, 24px);
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 18px;
-        background:
-          linear-gradient(135deg, rgba(14, 20, 28, 0.96), rgba(32, 42, 57, 0.92));
-        color: #f4f7fb;
+        gap: var(--screen-recorder-shell-gap, 10px);
+        padding: var(--screen-recorder-shell-padding, 10px 12px);
+        border-radius: var(--screen-recorder-shell-radius, 18px);
+        background: var(--screen-recorder-shell-background, linear-gradient(135deg, rgba(14, 20, 28, 0.96), rgba(32, 42, 57, 0.92)));
+        color: var(--screen-recorder-text-color, #f4f7fb);
         box-shadow:
-          0 18px 40px rgba(6, 11, 17, 0.26),
-          inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(14px);
+          var(--screen-recorder-shell-shadow-outer, 0 18px 40px rgba(6, 11, 17, 0.26)),
+          var(--screen-recorder-shell-shadow-inner, inset 0 1px 0 rgba(255, 255, 255, 0.08));
+        border: var(--screen-recorder-shell-border, 1px solid rgba(255, 255, 255, 0.1));
+        backdrop-filter: var(--screen-recorder-shell-backdrop-filter, blur(14px));
         user-select: none;
         cursor: grab;
         touch-action: none;
@@ -68,38 +69,38 @@ class ScreenRecorder extends HTMLElement {
       [part~="handle"] {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding-right: 6px;
+        gap: var(--screen-recorder-handle-gap, 8px);
+        padding-right: var(--screen-recorder-handle-padding-right, 6px);
       }
 
       [part~="status-indicator"] {
-        width: 10px;
-        height: 10px;
+        width: var(--screen-recorder-indicator-size, 10px);
+        height: var(--screen-recorder-indicator-size, 10px);
         border-radius: 999px;
         background: var(--indicator-color, #8ea4bc);
-        box-shadow: 0 0 12px color-mix(in srgb, var(--indicator-color, #8ea4bc) 60%, transparent);
+        box-shadow: 0 0 var(--screen-recorder-indicator-glow-size, 12px) color-mix(in srgb, var(--indicator-color, #8ea4bc) 60%, transparent);
       }
 
       [part~="status-badge"] {
         min-width: 74px;
-        font-size: 11px;
+        font-size: var(--screen-recorder-status-font-size, 11px);
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #c8d5e3;
+        color: var(--screen-recorder-muted-text-color, #c8d5e3);
       }
 
       [part~="button"] {
         appearance: none;
         border: 0;
         border-radius: 999px;
-        padding: 10px 14px;
+        padding: var(--screen-recorder-button-padding, 10px 14px);
         font: inherit;
-        font-size: 13px;
+        font-size: var(--screen-recorder-button-font-size, 13px);
         font-weight: 700;
         letter-spacing: 0.02em;
         cursor: pointer;
-        transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease;
+        transition: transform var(--screen-recorder-transition-duration, 140ms) ease, opacity var(--screen-recorder-transition-duration, 140ms) ease, background-color var(--screen-recorder-transition-duration, 140ms) ease;
       }
 
       [part~="button"]:hover {
@@ -113,26 +114,26 @@ class ScreenRecorder extends HTMLElement {
       }
 
       [part~="record-button"] {
-        min-width: 108px;
-        background: linear-gradient(135deg, #ff6b57, #ff2f54);
-        color: #fff6f4;
+        min-width: var(--screen-recorder-record-min-width, 108px);
+        background: var(--screen-recorder-record-background, linear-gradient(135deg, #ff6b57, #ff2f54));
+        color: var(--screen-recorder-record-color, #fff6f4);
       }
 
       [part~="capture-button"] {
-        background: linear-gradient(135deg, #ffe6a7, #ffbf5e);
-        color: #3c2500;
+        background: var(--screen-recorder-capture-background, linear-gradient(135deg, #ffe6a7, #ffbf5e));
+        color: var(--screen-recorder-capture-color, #3c2500);
       }
 
       [part~="download-button"] {
-        background: linear-gradient(135deg, #d7e8ff, #a8c9ff);
-        color: #10223a;
+        background: var(--screen-recorder-download-background, linear-gradient(135deg, #d7e8ff, #a8c9ff));
+        color: var(--screen-recorder-download-color, #10223a);
       }
 
       [part~="capture-overlay"] {
         position: fixed;
         inset: 0;
         z-index: 10001;
-        background: rgba(4, 8, 13, 0.82);
+        background: var(--screen-recorder-overlay-background, rgba(4, 8, 13, 0.82));
         display: grid;
         place-items: center;
       }
@@ -140,24 +141,24 @@ class ScreenRecorder extends HTMLElement {
       [part~="capture-panel"] {
         width: min(92vw, 1200px);
         max-height: 92vh;
-        padding: 18px;
-        border-radius: 24px;
-        background: #0c1621;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: #e7eef7;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: var(--screen-recorder-panel-padding, 18px);
+        border-radius: var(--screen-recorder-panel-radius, 24px);
+        background: var(--screen-recorder-panel-background, #0c1621);
+        box-shadow: var(--screen-recorder-panel-shadow, 0 24px 60px rgba(0, 0, 0, 0.45));
+        border: var(--screen-recorder-panel-border, 1px solid rgba(255, 255, 255, 0.08));
+        color: var(--screen-recorder-panel-text-color, #e7eef7);
+        font-family: var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
       }
 
       [part~="capture-heading"] {
-        font-size: 16px;
+        font-size: var(--screen-recorder-heading-font-size, 16px);
         font-weight: 700;
         margin-bottom: 6px;
       }
 
       [part~="capture-hint"] {
-        font-size: 13px;
-        color: #9cb2ca;
+        font-size: var(--screen-recorder-hint-font-size, 13px);
+        color: var(--screen-recorder-hint-color, #9cb2ca);
         margin-bottom: 14px;
       }
 
@@ -165,8 +166,8 @@ class ScreenRecorder extends HTMLElement {
         position: relative;
         overflow: auto;
         max-height: calc(92vh - 150px);
-        border-radius: 16px;
-        background: #08111a;
+        border-radius: var(--screen-recorder-preview-radius, 16px);
+        background: var(--screen-recorder-preview-background, #08111a);
       }
 
       [part~="capture-preview"] {
@@ -176,8 +177,8 @@ class ScreenRecorder extends HTMLElement {
 
       [part~="capture-selection"] {
         position: absolute;
-        border: 2px solid #7ed0ff;
-        background: rgba(126, 208, 255, 0.18);
+        border: var(--screen-recorder-selection-border, 2px solid #7ed0ff);
+        background: var(--screen-recorder-selection-background, rgba(126, 208, 255, 0.18));
         pointer-events: none;
         display: none;
       }
@@ -185,20 +186,20 @@ class ScreenRecorder extends HTMLElement {
       [part~="capture-actions"] {
         display: flex;
         justify-content: flex-end;
-        gap: 10px;
-        margin-top: 14px;
+        gap: var(--screen-recorder-actions-gap, 10px);
+        margin-top: var(--screen-recorder-actions-margin-top, 14px);
       }
 
       [part~="capture-action-button"] {
         appearance: none;
         border: 0;
         border-radius: 999px;
-        padding: 10px 14px;
+        padding: var(--screen-recorder-button-padding, 10px 14px);
         font: inherit;
-        font-size: 13px;
+        font-size: var(--screen-recorder-button-font-size, 13px);
         font-weight: 700;
         cursor: pointer;
-        transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease;
+        transition: transform var(--screen-recorder-transition-duration, 140ms) ease, opacity var(--screen-recorder-transition-duration, 140ms) ease, background-color var(--screen-recorder-transition-duration, 140ms) ease;
       }
 
       [part~="capture-action-button"]:hover {
@@ -212,19 +213,19 @@ class ScreenRecorder extends HTMLElement {
       }
 
       [part~="capture-cancel-button"] {
-        background: #243445;
-        color: #eef4fb;
+        background: var(--screen-recorder-cancel-background, #243445);
+        color: var(--screen-recorder-cancel-color, #eef4fb);
       }
 
       [part~="capture-save-button"] {
-        background: linear-gradient(135deg, #ffe6a7, #ffbf5e);
-        color: #3c2500;
+        background: var(--screen-recorder-save-background, linear-gradient(135deg, #ffe6a7, #ffbf5e));
+        color: var(--screen-recorder-save-color, #3c2500);
       }
 
       @media (max-width: 640px) {
         [part~="shell"] {
-          gap: 8px;
-          padding: 10px;
+          gap: var(--screen-recorder-shell-gap-mobile, 8px);
+          padding: var(--screen-recorder-shell-padding-mobile, 10px);
         }
 
         [part~="status-badge"] {
@@ -232,8 +233,8 @@ class ScreenRecorder extends HTMLElement {
         }
 
         [part~="button"] {
-          padding: 10px 12px;
-          font-size: 12px;
+          padding: var(--screen-recorder-button-padding-mobile, 10px 12px);
+          font-size: var(--screen-recorder-button-font-size-mobile, 12px);
         }
       }
     `;
@@ -514,17 +515,17 @@ class ScreenRecorder extends HTMLElement {
     this.downloadButton.disabled = !this.isRecordEnabled || !this.recordingBlob || !this.lastCompletedAt || this.status === "recording";
 
     const indicatorColor = this.status === "recording"
-      ? "#ff5f57"
+      ? this.cssVar("--screen-recorder-indicator-recording-color", "#ff5f57")
       : this.status === "ready" || this.status === "downloaded"
-        ? "#63d18c"
+        ? this.cssVar("--screen-recorder-indicator-ready-color", "#63d18c")
         : this.status === "error" || this.status === "denied"
-          ? "#ffb54d"
-          : "#8ea4bc";
+          ? this.cssVar("--screen-recorder-indicator-error-color", "#ffb54d")
+          : this.cssVar("--screen-recorder-indicator-idle-color", "#8ea4bc");
     this.container.style.setProperty("--indicator-color", indicatorColor);
 
     if (!this.positionSet) {
-      this.container.style.top = "24px";
-      this.container.style.right = "24px";
+      this.container.style.top = this.cssVar("--screen-recorder-shell-top", "24px");
+      this.container.style.right = this.cssVar("--screen-recorder-shell-right", "24px");
     }
   }
 
@@ -591,6 +592,11 @@ class ScreenRecorder extends HTMLElement {
 
   private pad(value: number): string {
     return value.toString().padStart(2, "0");
+  }
+
+  private cssVar(name: string, fallback: string): string {
+    const value = getComputedStyle(this).getPropertyValue(name).trim();
+    return value || fallback;
   }
 
   private scheduleIdleReset() {

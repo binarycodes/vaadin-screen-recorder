@@ -84,6 +84,41 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-cancel-button`
 - `capture-save-button`
 
+## Global Theme Properties
+
+For common styling, set CSS custom properties globally (for example on `:root`) and the addon picks them up without `::part`.
+
+```css
+:root {
+  --screen-recorder-font-family: var(--lumo-font-family);
+  --screen-recorder-font-size: 15px;
+
+  --screen-recorder-shell-padding: 12px 16px;
+  --screen-recorder-shell-gap: 12px;
+  --screen-recorder-shell-radius: 20px;
+  --screen-recorder-shell-background: #1d2733;
+  --screen-recorder-text-color: #f4f7fb;
+  --screen-recorder-muted-text-color: #b9c7d6;
+
+  --screen-recorder-button-font-size: 14px;
+  --screen-recorder-button-padding: 10px 14px;
+  --screen-recorder-record-background: #d33b3b;
+  --screen-recorder-capture-background: #f7c45b;
+  --screen-recorder-download-background: #8cb8ff;
+
+  --screen-recorder-indicator-idle-color: #8ea4bc;
+  --screen-recorder-indicator-recording-color: #ff5f57;
+  --screen-recorder-indicator-ready-color: #63d18c;
+  --screen-recorder-indicator-error-color: #ffb54d;
+}
+```
+
+Most useful property groups:
+
+- Typography: `--screen-recorder-font-family`, `--screen-recorder-font-size`, `--screen-recorder-button-font-size`, `--screen-recorder-status-font-size`
+- Spacing/sizing: `--screen-recorder-shell-padding`, `--screen-recorder-shell-gap`, `--screen-recorder-button-padding`, `--screen-recorder-panel-padding`
+- Colors: `--screen-recorder-shell-background`, `--screen-recorder-text-color`, `--screen-recorder-muted-text-color`, `--screen-recorder-record-background`, `--screen-recorder-capture-background`, `--screen-recorder-download-background`
+
 ## Browser Notes
 
 - Screen and tab capture always require user permission

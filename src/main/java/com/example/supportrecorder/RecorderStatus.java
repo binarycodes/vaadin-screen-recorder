@@ -14,6 +14,10 @@ public enum RecorderStatus {
         this.clientValue = clientValue;
     }
 
+    public String toClientValue() {
+        return this.clientValue;
+    }
+
     public static RecorderStatus fromClientValue(String value) {
         for (final RecorderStatus status : values()) {
             if (status.clientValue.equals(value)) {
