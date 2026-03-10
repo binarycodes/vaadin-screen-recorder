@@ -151,7 +151,7 @@ class ScreenRecorder extends HTMLElement {
         color: var(--screen-recorder-capture-color, #3c2500);
       }
 
-      [part~="capture-overlay"] {
+      [part~="preview-overlay"] {
         position: fixed;
         inset: 0;
         z-index: 10001;
@@ -160,7 +160,7 @@ class ScreenRecorder extends HTMLElement {
         place-items: center;
       }
 
-      [part~="capture-panel"] {
+      [part~="preview-panel"] {
         width: min(92vw, 1200px);
         max-height: 92vh;
         padding: var(--screen-recorder-panel-padding, 18px);
@@ -172,7 +172,7 @@ class ScreenRecorder extends HTMLElement {
         font-family: var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
       }
 
-      [part~="capture-toolbar"] {
+      [part~="preview-toolbar"] {
         display: flex;
         justify-content: flex-start;
         gap: 8px;
@@ -181,7 +181,7 @@ class ScreenRecorder extends HTMLElement {
         border-bottom: var(--screen-recorder-toolbar-border-bottom, 1px solid rgba(255, 255, 255, 0.08));
       }
 
-      [part~="capture-toolbar-button"] {
+      [part~="preview-toolbar-button"] {
         appearance: none;
         border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
         border-radius: var(--screen-recorder-toolbar-button-radius, 8px);
@@ -225,7 +225,7 @@ class ScreenRecorder extends HTMLElement {
         cursor: not-allowed;
       }
 
-      [part~="capture-text-size-select"] {
+      [part~="preview-text-size-select"] {
         height: var(--screen-recorder-toolbar-button-size, 32px);
         min-width: 78px;
         border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
@@ -238,12 +238,12 @@ class ScreenRecorder extends HTMLElement {
         padding: 0 8px;
       }
 
-      [part~="capture-color-picker"] {
+      [part~="preview-color-picker"] {
         position: relative;
         display: inline-flex;
       }
 
-      [part~="capture-color-trigger"] {
+      [part~="preview-color-trigger"] {
         height: var(--screen-recorder-toolbar-button-size, 32px);
         min-width: 54px;
         border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
@@ -259,14 +259,35 @@ class ScreenRecorder extends HTMLElement {
         font: inherit;
       }
 
-      [part~="capture-color-swatch"] {
+      vaadin-button[part~="preview-color-trigger"]::part(button) {
+        height: var(--screen-recorder-toolbar-button-size, 32px);
+        min-width: 54px;
+        border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
+        border-radius: var(--screen-recorder-toolbar-button-radius, 8px);
+        background: var(--screen-recorder-toolbar-button-background, #1a2b3d);
+        color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 8px;
+        margin: 0;
+        font: inherit;
+        min-height: 0;
+      }
+
+      vaadin-button[part~="preview-color-trigger"]::part(label) {
+        margin: 0;
+      }
+
+      [part~="preview-color-swatch"] {
         width: 14px;
         height: 14px;
         border-radius: 3px;
         border: 1px solid rgba(255, 255, 255, 0.35);
       }
 
-      [part~="capture-color-menu"] {
+      [part~="preview-color-menu"] {
         position: absolute;
         top: calc(100% + 6px);
         left: 0;
@@ -281,11 +302,11 @@ class ScreenRecorder extends HTMLElement {
         z-index: 3;
       }
 
-      [part~="capture-color-menu"][hidden] {
+      [part~="preview-color-menu"][hidden] {
         display: none !important;
       }
 
-      [part~="capture-color-option"] {
+      [part~="preview-color-option"] {
         width: 18px;
         height: 18px;
         border-radius: 4px;
@@ -294,12 +315,12 @@ class ScreenRecorder extends HTMLElement {
         cursor: pointer;
       }
 
-      [part~="capture-color-option"][data-selected="true"] {
+      [part~="preview-color-option"][data-selected="true"] {
         outline: 2px solid #ffffff;
         outline-offset: 1px;
       }
 
-      [part~="capture-trim-editor"] {
+      [part~="preview-trim-editor"] {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -307,14 +328,14 @@ class ScreenRecorder extends HTMLElement {
         min-width: 0;
       }
 
-      [part~="capture-trim-slider-wrap"] {
+      [part~="preview-trim-slider-wrap"] {
         position: relative;
         height: 28px;
         flex: 1 1 auto;
         min-width: 160px;
       }
 
-      [part~="capture-trim-track"] {
+      [part~="preview-trim-track"] {
         position: absolute;
         left: 0;
         right: 0;
@@ -325,7 +346,7 @@ class ScreenRecorder extends HTMLElement {
         background: var(--screen-recorder-trim-track-background, rgba(255, 255, 255, 0.24));
       }
 
-      [part~="capture-trim-active"] {
+      [part~="preview-trim-active"] {
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
@@ -334,7 +355,7 @@ class ScreenRecorder extends HTMLElement {
         background: var(--screen-recorder-trim-accent-color, #7ec8ff);
       }
 
-      [part~="capture-trim-handle"] {
+      [part~="preview-trim-handle"] {
         position: absolute;
         top: 50%;
         width: 14px;
@@ -349,7 +370,7 @@ class ScreenRecorder extends HTMLElement {
         z-index: 4;
       }
 
-      [part~="capture-trim-handle"]:disabled {
+      [part~="preview-trim-handle"]:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
@@ -362,31 +383,31 @@ class ScreenRecorder extends HTMLElement {
         font-variant-numeric: tabular-nums;
       }
 
-      [part~="capture-toolbar-button"][aria-pressed="true"] {
+      [part~="preview-toolbar-button"][aria-pressed="true"] {
         background: var(--screen-recorder-toolbar-button-active-background, #355a80);
         color: var(--screen-recorder-toolbar-button-active-color, #f4f9ff);
       }
 
-      [part~="capture-heading"] {
+      [part~="preview-heading"] {
         font-size: var(--screen-recorder-heading-font-size, 16px);
         font-weight: 700;
         margin-bottom: 6px;
       }
 
-      [part~="capture-hint"] {
+      [part~="preview-hint"] {
         font-size: var(--screen-recorder-hint-font-size, 13px);
         color: var(--screen-recorder-hint-color, #9cb2ca);
         margin-bottom: 14px;
       }
 
-      [part~="capture-save-notice"] {
+      [part~="preview-save-notice"] {
         display: none;
         margin-top: 8px;
         font-size: 12px;
         color: var(--screen-recorder-save-notice-color, #9edbb4);
       }
 
-      [part~="capture-preview-wrap"] {
+      [part~="preview-content-wrap"] {
         position: relative;
         display: flex;
         justify-content: center;
@@ -397,12 +418,12 @@ class ScreenRecorder extends HTMLElement {
         background: var(--screen-recorder-preview-background, #08111a);
       }
 
-      [part~="capture-preview-stage"] {
+      [part~="preview-stage"] {
         position: relative;
         flex: 0 0 auto;
       }
 
-      [part~="capture-preview"] {
+      [part~="preview-media"] {
         display: block;
         width: auto;
         max-width: 100%;
@@ -418,7 +439,7 @@ class ScreenRecorder extends HTMLElement {
         background: var(--screen-recorder-recording-preview-background, #000);
       }
 
-      [part~="capture-selection"] {
+      [part~="preview-selection"] {
         position: absolute;
         border: var(--screen-recorder-selection-border, 2px solid #7ed0ff);
         background: var(--screen-recorder-selection-background, rgba(126, 208, 255, 0.18));
@@ -426,7 +447,7 @@ class ScreenRecorder extends HTMLElement {
         display: none;
       }
 
-      [part~="capture-annotations"] {
+      [part~="preview-annotations"] {
         position: absolute;
         inset: 0;
         width: 100%;
@@ -434,18 +455,18 @@ class ScreenRecorder extends HTMLElement {
         pointer-events: none;
       }
 
-      [part~="capture-arrow"] {
+      [part~="preview-arrow"] {
         stroke: var(--screen-recorder-arrow-color, #ff5f57);
         stroke-width: var(--screen-recorder-arrow-width, 4px);
         fill: none;
         stroke-linecap: round;
       }
 
-      [part~="capture-arrow-head"] {
+      [part~="preview-arrow-head"] {
         fill: var(--screen-recorder-arrow-color, #ff5f57);
       }
 
-      [part~="capture-text"] {
+      [part~="preview-text"] {
         fill: var(--screen-recorder-text-annotation-color, #ffffff);
         font-size: var(--screen-recorder-text-annotation-size, 22px);
         font-family: var(--screen-recorder-text-annotation-font-family, var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)));
@@ -456,7 +477,7 @@ class ScreenRecorder extends HTMLElement {
         stroke-linejoin: round;
       }
 
-      [part~="capture-text-editor"] {
+      [part~="preview-text-editor"] {
         position: absolute;
         min-width: 140px;
         min-height: 32px;
@@ -474,14 +495,14 @@ class ScreenRecorder extends HTMLElement {
         z-index: 2;
       }
 
-      [part~="capture-actions"] {
+      [part~="preview-actions"] {
         display: flex;
         justify-content: flex-end;
         gap: var(--screen-recorder-actions-gap, 10px);
         margin-top: var(--screen-recorder-actions-margin-top, 14px);
       }
 
-      [part~="capture-action-button"] {
+      [part~="preview-action-button"] {
         appearance: none;
         border: 0;
         border-radius: 999px;
@@ -513,18 +534,18 @@ class ScreenRecorder extends HTMLElement {
         transform: translateY(-1px);
       }
 
-      [part~="capture-action-button"]:disabled {
+      [part~="preview-action-button"]:disabled {
         cursor: not-allowed;
         opacity: 0.45;
         transform: none;
       }
 
-      [part~="capture-cancel-button"] {
+      [part~="preview-cancel-button"] {
         background: var(--screen-recorder-cancel-background, #243445);
         color: var(--screen-recorder-cancel-color, #eef4fb);
       }
 
-      [part~="capture-save-button"] {
+      [part~="preview-save-button"] {
         background: var(--screen-recorder-save-background, linear-gradient(135deg, #ffe6a7, #ffbf5e));
         color: var(--screen-recorder-save-color, #3c2500);
       }
@@ -965,30 +986,30 @@ class ScreenRecorder extends HTMLElement {
 
   private async openCaptureOverlay(frame: ImageBitmap): Promise<void> {
     const overlay = document.createElement("div");
-    overlay.setAttribute("part", "preview-overlay capture-overlay");
+    overlay.setAttribute("part", "preview-overlay");
 
     const panel = document.createElement("div");
-    panel.setAttribute("part", "preview-panel capture-panel");
+    panel.setAttribute("part", "preview-panel");
 
     const toolbar = document.createElement("div");
-    toolbar.setAttribute("part", "preview-toolbar capture-toolbar");
+    toolbar.setAttribute("part", "preview-toolbar");
 
     const cropToggle = document.createElement("vaadin-button") as VaadinButtonElement;
     cropToggle.textContent = "✂";
-    cropToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-crop-button capture-crop-button");
+    cropToggle.setAttribute("part", "preview-toolbar-button preview-crop-button");
     cropToggle.setAttribute("aria-label", "Crop");
     cropToggle.title = "Crop";
     cropToggle.setAttribute("aria-pressed", "false");
 
     const arrowToggle = document.createElement("vaadin-button") as VaadinButtonElement;
     arrowToggle.textContent = "➤";
-    arrowToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-arrow-button capture-arrow-button");
+    arrowToggle.setAttribute("part", "preview-toolbar-button preview-arrow-button");
     arrowToggle.setAttribute("aria-label", "Arrow");
     arrowToggle.title = "Arrow";
     arrowToggle.setAttribute("aria-pressed", "false");
 
     const textSizeSelect = document.createElement("select");
-    textSizeSelect.setAttribute("part", "preview-text-size-select capture-text-size-select");
+    textSizeSelect.setAttribute("part", "preview-text-size-select");
     textSizeSelect.setAttribute("aria-label", "Text size");
     for (const size of [14, 18, 22, 28, 36]) {
       const option = document.createElement("option");
@@ -1066,28 +1087,28 @@ class ScreenRecorder extends HTMLElement {
       };
 
       const wrapper = document.createElement("div");
-      wrapper.setAttribute("part", `preview-color-picker capture-color-picker ${pickerParts}`);
+      wrapper.setAttribute("part", `preview-color-picker ${pickerParts}`);
 
       const trigger = document.createElement("button");
       trigger.type = "button";
-      trigger.setAttribute("part", "preview-color-trigger capture-color-trigger");
+      trigger.setAttribute("part", "preview-color-trigger");
       trigger.setAttribute("aria-label", `${label} color`);
 
       const swatch = document.createElement("span");
-      swatch.setAttribute("part", "preview-color-swatch capture-color-swatch");
+      swatch.setAttribute("part", "preview-color-swatch");
       const caret = document.createElement("span");
       caret.textContent = "▾";
       trigger.append(swatch, caret);
 
       const menu = document.createElement("div");
-      menu.setAttribute("part", "preview-color-menu capture-color-menu");
+      menu.setAttribute("part", "preview-color-menu");
       menu.hidden = true;
 
       const options: HTMLButtonElement[] = [];
       for (const color of paletteColors) {
         const option = document.createElement("button");
         option.type = "button";
-        option.setAttribute("part", "preview-color-option capture-color-option");
+        option.setAttribute("part", "preview-color-option");
         option.dataset.color = normalizeColor(color);
         option.style.background = color;
         option.addEventListener("click", () => {
@@ -1114,7 +1135,7 @@ class ScreenRecorder extends HTMLElement {
 
     const arrowColorPicker = createColorPicker(
       "Arrow",
-      "preview-arrow-color-picker capture-arrow-color-picker",
+      "preview-arrow-color-picker",
       () => activeArrowColor,
       (value) => {
         activeArrowColor = value;
@@ -1123,7 +1144,7 @@ class ScreenRecorder extends HTMLElement {
 
     const textColorPicker = createColorPicker(
       "Text",
-      "preview-text-color-picker capture-text-color-picker",
+      "preview-text-color-picker",
       () => activeTextColor,
       (value) => {
         activeTextColor = value;
@@ -1151,14 +1172,14 @@ class ScreenRecorder extends HTMLElement {
 
     const undoButton = document.createElement("vaadin-button") as VaadinButtonElement;
     undoButton.textContent = "↶";
-    undoButton.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-undo-button capture-undo-button");
+    undoButton.setAttribute("part", "preview-toolbar-button preview-undo-button");
     undoButton.setAttribute("aria-label", "Undo");
     undoButton.title = "Undo";
     undoButton.disabled = true;
 
     const textToggle = document.createElement("vaadin-button") as VaadinButtonElement;
     textToggle.textContent = "T";
-    textToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-text-button capture-text-button");
+    textToggle.setAttribute("part", "preview-toolbar-button preview-text-button");
     textToggle.setAttribute("aria-label", "Text");
     textToggle.title = "Text";
     textToggle.setAttribute("aria-pressed", "false");
@@ -1174,14 +1195,14 @@ class ScreenRecorder extends HTMLElement {
 
     const heading = document.createElement("div");
     heading.textContent = "Capture preview";
-    heading.setAttribute("part", "preview-heading capture-heading");
+    heading.setAttribute("part", "preview-heading");
 
     const hint = document.createElement("div");
     hint.textContent = "Use Crop, Arrow, or Text. In Text mode, click to place or drag to size a text box.";
-    hint.setAttribute("part", "preview-hint capture-hint");
+    hint.setAttribute("part", "preview-hint");
 
     const previewWrap = document.createElement("div");
-    previewWrap.setAttribute("part", "preview-content-wrap capture-preview-wrap");
+    previewWrap.setAttribute("part", "preview-content-wrap");
 
     const canvas = document.createElement("canvas");
     const maxWidth = Math.min(window.innerWidth * 0.9, 1160);
@@ -1189,7 +1210,7 @@ class ScreenRecorder extends HTMLElement {
     const scale = Math.min(maxWidth / frame.width, maxHeight / frame.height, 1);
     canvas.width = Math.max(1, Math.round(frame.width * scale));
     canvas.height = Math.max(1, Math.round(frame.height * scale));
-    canvas.setAttribute("part", "preview-media capture-preview");
+    canvas.setAttribute("part", "preview-media");
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -1199,31 +1220,31 @@ class ScreenRecorder extends HTMLElement {
     context.drawImage(frame, 0, 0, canvas.width, canvas.height);
 
     const selection = document.createElement("div");
-    selection.setAttribute("part", "preview-selection capture-selection");
+    selection.setAttribute("part", "preview-selection");
 
     const annotations = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    annotations.setAttribute("part", "preview-annotations capture-annotations");
+    annotations.setAttribute("part", "preview-annotations");
     annotations.setAttribute("aria-hidden", "true");
     const arrowsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const textsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     annotations.append(arrowsLayer, textsLayer);
 
     const previewStage = document.createElement("div");
-    previewStage.setAttribute("part", "preview-stage capture-preview-stage");
+    previewStage.setAttribute("part", "preview-stage");
     previewStage.append(canvas, annotations, selection);
 
     previewWrap.append(previewStage);
 
     const actions = document.createElement("div");
-    actions.setAttribute("part", "preview-actions capture-actions");
+    actions.setAttribute("part", "preview-actions");
 
     const cancel = document.createElement("vaadin-button") as VaadinButtonElement;
     cancel.textContent = "Cancel";
-    cancel.setAttribute("part", "preview-action-button capture-action-button preview-cancel-button capture-cancel-button");
+    cancel.setAttribute("part", "preview-action-button preview-cancel-button");
 
     const save = document.createElement("vaadin-button") as VaadinButtonElement;
     save.textContent = "Save capture";
-    save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
+    save.setAttribute("part", "preview-action-button preview-save-button");
 
     actions.append(cancel, save);
     panel.append(heading, toolbar, hint, previewWrap, actions);
@@ -1284,7 +1305,7 @@ class ScreenRecorder extends HTMLElement {
           continue;
         }
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("part", "preview-arrow capture-arrow");
+        line.setAttribute("part", "preview-arrow");
         line.setAttribute("x1", `${arrow.x1}`);
         line.setAttribute("y1", `${arrow.y1}`);
         line.setAttribute("x2", `${arrow.x2}`);
@@ -1292,7 +1313,7 @@ class ScreenRecorder extends HTMLElement {
         line.style.stroke = arrow.color;
 
         const head = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        head.setAttribute("part", "preview-arrow-head capture-arrow-head");
+        head.setAttribute("part", "preview-arrow-head");
         head.setAttribute("points", arrowHeadPoints(arrow));
         head.style.fill = arrow.color;
 
@@ -1307,7 +1328,7 @@ class ScreenRecorder extends HTMLElement {
         const lines = annotation.text.split(/\r?\n/);
         for (let i = 0; i < lines.length; i += 1) {
           const textNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          textNode.setAttribute("part", "preview-text capture-text");
+          textNode.setAttribute("part", "preview-text");
           textNode.setAttribute("x", `${annotation.x}`);
           textNode.setAttribute("y", `${annotation.y + (i * lineHeight)}`);
           textNode.setAttribute("dominant-baseline", "hanging");
@@ -1443,7 +1464,7 @@ class ScreenRecorder extends HTMLElement {
     const startTextEditor = (x: number, y: number, width = 160, height = 42) => {
       commitTextEditor();
       const editor = document.createElement("textarea");
-      editor.setAttribute("part", "preview-text-editor capture-text-editor");
+      editor.setAttribute("part", "preview-text-editor");
       editor.style.left = `${x}px`;
       editor.style.top = `${y}px`;
       editor.style.width = `${Math.max(140, width)}px`;
@@ -1793,47 +1814,47 @@ class ScreenRecorder extends HTMLElement {
 
   private async openRecordingOverlay(blob: Blob, completedAt: Date, estimatedDurationSeconds = 0): Promise<void> {
     const overlay = document.createElement("div");
-    overlay.setAttribute("part", "preview-overlay capture-overlay");
+    overlay.setAttribute("part", "preview-overlay");
 
     const panel = document.createElement("div");
-    panel.setAttribute("part", "preview-panel capture-panel");
+    panel.setAttribute("part", "preview-panel");
 
     const heading = document.createElement("div");
     heading.textContent = "Recording preview";
-    heading.setAttribute("part", "preview-heading capture-heading");
+    heading.setAttribute("part", "preview-heading");
 
     const toolbar = document.createElement("div");
-    toolbar.setAttribute("part", "preview-toolbar capture-toolbar preview-recording-toolbar capture-recording-toolbar");
+    toolbar.setAttribute("part", "preview-toolbar preview-recording-toolbar");
 
     const trimEditor = document.createElement("div");
-    trimEditor.setAttribute("part", "preview-trim-editor capture-trim-editor");
+    trimEditor.setAttribute("part", "preview-trim-editor");
 
     const startHandle = document.createElement("button");
     startHandle.type = "button";
     startHandle.disabled = true;
-    startHandle.setAttribute("part", "preview-trim-handle capture-trim-handle preview-trim-start capture-trim-start");
+    startHandle.setAttribute("part", "preview-trim-handle preview-trim-start");
     startHandle.setAttribute("aria-label", "Trim start");
 
     const startTime = document.createElement("span");
     startTime.textContent = "0:00";
-    startTime.setAttribute("part", "preview-trim-time capture-trim-time preview-trim-start-time capture-trim-start-time");
+    startTime.setAttribute("part", "preview-trim-time preview-trim-start-time");
 
     const endHandle = document.createElement("button");
     endHandle.type = "button";
     endHandle.disabled = true;
-    endHandle.setAttribute("part", "preview-trim-handle capture-trim-handle preview-trim-end capture-trim-end");
+    endHandle.setAttribute("part", "preview-trim-handle preview-trim-end");
     endHandle.setAttribute("aria-label", "Trim end");
 
     const endTime = document.createElement("span");
     endTime.textContent = "0:00";
-    endTime.setAttribute("part", "preview-trim-time capture-trim-time preview-trim-end-time capture-trim-end-time");
+    endTime.setAttribute("part", "preview-trim-time preview-trim-end-time");
 
     const sliderWrap = document.createElement("div");
-    sliderWrap.setAttribute("part", "preview-trim-slider-wrap capture-trim-slider-wrap");
+    sliderWrap.setAttribute("part", "preview-trim-slider-wrap");
     const sliderTrack = document.createElement("div");
-    sliderTrack.setAttribute("part", "preview-trim-track capture-trim-track");
+    sliderTrack.setAttribute("part", "preview-trim-track");
     const sliderActive = document.createElement("div");
-    sliderActive.setAttribute("part", "preview-trim-active capture-trim-active");
+    sliderActive.setAttribute("part", "preview-trim-active");
     sliderActive.hidden = true;
     sliderWrap.append(sliderTrack, sliderActive, startHandle, endHandle);
 
@@ -1842,13 +1863,13 @@ class ScreenRecorder extends HTMLElement {
 
     const hint = document.createElement("div");
     hint.textContent = "Review the recording, then save it.";
-    hint.setAttribute("part", "preview-hint capture-hint");
+    hint.setAttribute("part", "preview-hint");
 
     const saveNotice = document.createElement("div");
-    saveNotice.setAttribute("part", "preview-save-notice capture-save-notice");
+    saveNotice.setAttribute("part", "preview-save-notice");
 
     const previewWrap = document.createElement("div");
-    previewWrap.setAttribute("part", "preview-content-wrap capture-preview-wrap");
+    previewWrap.setAttribute("part", "preview-content-wrap");
 
     const video = document.createElement("video");
     video.controls = true;
@@ -1860,16 +1881,16 @@ class ScreenRecorder extends HTMLElement {
     previewWrap.append(video);
 
     const actions = document.createElement("div");
-    actions.setAttribute("part", "preview-actions capture-actions");
+    actions.setAttribute("part", "preview-actions");
 
     const cancel = document.createElement("vaadin-button") as VaadinButtonElement;
     cancel.textContent = "Cancel";
-    cancel.setAttribute("part", "preview-action-button capture-action-button preview-cancel-button capture-cancel-button");
+    cancel.setAttribute("part", "preview-action-button preview-cancel-button");
 
     const save = document.createElement("vaadin-button") as VaadinButtonElement;
     save.textContent = "Save recording";
     save.disabled = true;
-    save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
+    save.setAttribute("part", "preview-action-button preview-save-button");
 
     actions.append(cancel, save);
     panel.append(heading, toolbar, hint, saveNotice, previewWrap, actions);
