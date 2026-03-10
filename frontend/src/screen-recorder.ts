@@ -1,18 +1,23 @@
+import "@vaadin/button";
+
 type RecorderStatus = "idle" | "recording" | "ready" | "downloaded" | "denied" | "error";
+type VaadinButtonElement = HTMLElement & { disabled: boolean };
 
 class ScreenRecorder extends HTMLElement {
   private readonly shadow = this.attachShadow({ mode: "open" });
   private readonly container = document.createElement("div");
   private readonly handle = document.createElement("div");
   private readonly statusBadge = document.createElement("span");
-  private readonly recordButton = document.createElement("button");
-  private readonly captureButton = document.createElement("button");
+  private readonly recordButton = document.createElement("vaadin-button") as VaadinButtonElement;
+  private readonly captureButton = document.createElement("vaadin-button") as VaadinButtonElement;
 
   private status: RecorderStatus = "idle";
   private stream: MediaStream | null = null;
   private recorder: MediaRecorder | null = null;
   private chunks: BlobPart[] = [];
   private recordingBlob: Blob | null = null;
+  private recordingStartedAtMs: number | null = null;
+  private lastRecordingDurationSeconds: number | null = null;
   private lastCompletedAt: Date | null = null;
   private statusResetTimer: number | null = null;
 
@@ -257,6 +262,75 @@ class ScreenRecorder extends HTMLElement {
         outline-offset: 1px;
       }
 
+      [part~="capture-trim-editor"] {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      [part~="capture-trim-slider-wrap"] {
+        position: relative;
+        height: 28px;
+        flex: 1 1 auto;
+        min-width: 160px;
+      }
+
+      [part~="capture-trim-track"] {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 4px;
+        border-radius: 999px;
+        background: var(--screen-recorder-trim-track-background, rgba(255, 255, 255, 0.24));
+      }
+
+      [part~="capture-trim-active"] {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 4px;
+        border-radius: 999px;
+        background: var(--screen-recorder-trim-accent-color, #7ec8ff);
+      }
+
+      [part~="capture-trim-handle"] {
+        position: absolute;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: #eef6ff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        padding: 0;
+        cursor: ew-resize;
+        z-index: 4;
+      }
+
+      [part~="capture-trim-handle"]:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      [part~="capture-trim-range-label"] {
+        font-size: 12px;
+        color: var(--screen-recorder-muted-text-color, #b9c7d6);
+        min-width: 40px;
+      }
+
+      [part~="capture-trim-time"] {
+        width: 52px;
+        text-align: right;
+        font-size: 12px;
+        color: var(--screen-recorder-panel-text-color, #e7eef7);
+        font-variant-numeric: tabular-nums;
+      }
+
       [part~="capture-toolbar-button"][aria-pressed="true"] {
         background: var(--screen-recorder-toolbar-button-active-background, #355a80);
         color: var(--screen-recorder-toolbar-button-active-color, #f4f9ff);
@@ -276,15 +350,24 @@ class ScreenRecorder extends HTMLElement {
 
       [part~="capture-preview-wrap"] {
         position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
         overflow: auto;
         max-height: calc(92vh - 150px);
         border-radius: var(--screen-recorder-preview-radius, 0px);
         background: var(--screen-recorder-preview-background, #08111a);
       }
 
+      [part~="capture-preview-stage"] {
+        position: relative;
+        flex: 0 0 auto;
+      }
+
       [part~="capture-preview"] {
         display: block;
-        width: 100%;
+        width: auto;
+        max-width: 100%;
         height: auto;
         cursor: crosshair;
       }
@@ -416,9 +499,6 @@ class ScreenRecorder extends HTMLElement {
     this.recordButton.setAttribute("part", "button record-button");
     this.captureButton.setAttribute("part", "button capture-button");
 
-    this.recordButton.type = "button";
-    this.captureButton.type = "button";
-
     this.handle.append(dot, this.statusBadge);
     this.container.setAttribute("part", "shell");
     this.container.append(this.handle, this.recordButton, this.captureButton);
@@ -487,6 +567,7 @@ class ScreenRecorder extends HTMLElement {
 
       this.chunks = [];
       this.recordingBlob = null;
+      this.lastRecordingDurationSeconds = null;
       this.lastCompletedAt = null;
       this.recorder = new MediaRecorder(this.stream, { mimeType });
       this.recorder.ondataavailable = (event: BlobEvent) => {
@@ -496,13 +577,22 @@ class ScreenRecorder extends HTMLElement {
       };
       this.recorder.onstop = () => {
         this.recordingBlob = new Blob(this.chunks, { type: "video/webm" });
+        if (this.recordingStartedAtMs !== null) {
+          const elapsedSeconds = Math.max(0.1, (Date.now() - this.recordingStartedAtMs) / 1000);
+          this.lastRecordingDurationSeconds = elapsedSeconds;
+          this.recordingStartedAtMs = null;
+        }
         this.lastCompletedAt = new Date();
         this.teardownStream();
         this.chunks = [];
         this.recorder = null;
         this.setStatus("ready");
         if (this.recordingBlob && this.lastCompletedAt) {
-          void this.openRecordingOverlay(this.recordingBlob, this.lastCompletedAt);
+          void this.openRecordingOverlay(
+            this.recordingBlob,
+            this.lastCompletedAt,
+            this.lastRecordingDurationSeconds ?? 0
+          );
         }
       };
 
@@ -516,11 +606,13 @@ class ScreenRecorder extends HTMLElement {
       }
 
       this.recorder.start(1000);
+      this.recordingStartedAtMs = Date.now();
       this.setStatus("recording");
     } catch (error) {
       this.teardownStream();
       this.recorder = null;
       this.chunks = [];
+      this.recordingStartedAtMs = null;
       if (error instanceof DOMException && error.name === "NotAllowedError") {
         this.setStatus("denied");
       } else {
@@ -546,7 +638,11 @@ class ScreenRecorder extends HTMLElement {
       return;
     }
 
-    void this.openRecordingOverlay(this.recordingBlob, this.lastCompletedAt);
+    void this.openRecordingOverlay(
+      this.recordingBlob,
+      this.lastCompletedAt,
+      this.lastRecordingDurationSeconds ?? 0
+    );
   }
 
   async captureSelection() {
@@ -608,7 +704,7 @@ class ScreenRecorder extends HTMLElement {
     }
 
     const target = event.target;
-    if (target instanceof HTMLElement && target.closest("button")) {
+    if (target instanceof HTMLElement && target.closest("button, vaadin-button")) {
       return;
     }
 
@@ -823,16 +919,14 @@ class ScreenRecorder extends HTMLElement {
     const toolbar = document.createElement("div");
     toolbar.setAttribute("part", "preview-toolbar capture-toolbar");
 
-    const cropToggle = document.createElement("button");
-    cropToggle.type = "button";
+    const cropToggle = document.createElement("vaadin-button") as VaadinButtonElement;
     cropToggle.textContent = "✂";
     cropToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-crop-button capture-crop-button");
     cropToggle.setAttribute("aria-label", "Crop");
     cropToggle.title = "Crop";
     cropToggle.setAttribute("aria-pressed", "false");
 
-    const arrowToggle = document.createElement("button");
-    arrowToggle.type = "button";
+    const arrowToggle = document.createElement("vaadin-button") as VaadinButtonElement;
     arrowToggle.textContent = "➤";
     arrowToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-arrow-button capture-arrow-button");
     arrowToggle.setAttribute("aria-label", "Arrow");
@@ -1001,16 +1095,14 @@ class ScreenRecorder extends HTMLElement {
     arrowColorPicker.trigger.addEventListener("click", onArrowColorTriggerClick);
     textColorPicker.trigger.addEventListener("click", onTextColorTriggerClick);
 
-    const undoButton = document.createElement("button");
-    undoButton.type = "button";
+    const undoButton = document.createElement("vaadin-button") as VaadinButtonElement;
     undoButton.textContent = "↶";
     undoButton.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-undo-button capture-undo-button");
     undoButton.setAttribute("aria-label", "Undo");
     undoButton.title = "Undo";
     undoButton.disabled = true;
 
-    const textToggle = document.createElement("button");
-    textToggle.type = "button";
+    const textToggle = document.createElement("vaadin-button") as VaadinButtonElement;
     textToggle.textContent = "T";
     textToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-text-button capture-text-button");
     textToggle.setAttribute("aria-label", "Text");
@@ -1062,18 +1154,20 @@ class ScreenRecorder extends HTMLElement {
     const textsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     annotations.append(arrowsLayer, textsLayer);
 
-    previewWrap.append(canvas, annotations, selection);
+    const previewStage = document.createElement("div");
+    previewStage.setAttribute("part", "preview-stage capture-preview-stage");
+    previewStage.append(canvas, annotations, selection);
+
+    previewWrap.append(previewStage);
 
     const actions = document.createElement("div");
     actions.setAttribute("part", "preview-actions capture-actions");
 
-    const cancel = document.createElement("button");
-    cancel.type = "button";
+    const cancel = document.createElement("vaadin-button") as VaadinButtonElement;
     cancel.textContent = "Cancel";
     cancel.setAttribute("part", "preview-action-button capture-action-button preview-cancel-button capture-cancel-button");
 
-    const save = document.createElement("button");
-    save.type = "button";
+    const save = document.createElement("vaadin-button") as VaadinButtonElement;
     save.textContent = "Save capture";
     save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
 
@@ -1083,7 +1177,12 @@ class ScreenRecorder extends HTMLElement {
 
     type Arrow = { x1: number; y1: number; x2: number; y2: number; color: string };
     type TextAnnotation = { x: number; y: number; text: string; sizePx: number; color: string };
-    type EditAction = { type: "arrow" } | { type: "text" } | { type: "crop"; previousRect: { x: number; y: number; width: number; height: number } };
+    type PreviewSnapshot = {
+      imageData: ImageData;
+      arrows: Arrow[];
+      texts: TextAnnotation[];
+    };
+    type EditAction = { type: "arrow" } | { type: "text" } | { type: "crop-preview"; snapshot: PreviewSnapshot };
     const rect = { x: 0, y: 0, width: 0, height: 0 };
     const arrows: Arrow[] = [];
     const texts: TextAnnotation[] = [];
@@ -1099,7 +1198,6 @@ class ScreenRecorder extends HTMLElement {
     let dragging = false;
     let startX = 0;
     let startY = 0;
-    let cropStartRect = { x: 0, y: 0, width: 0, height: 0 };
     let activeTextSize = Number.parseFloat(this.cssVar("--screen-recorder-text-annotation-size", "22")) || 22;
     textSizeSelect.value = `${Math.round(activeTextSize)}`;
     if (!textSizeSelect.value) {
@@ -1108,6 +1206,8 @@ class ScreenRecorder extends HTMLElement {
     }
 
     const hasValidCrop = () => rect.width >= 2 && rect.height >= 2;
+    const pointInRect = (x: number, y: number, targetRect: { x: number; y: number; width: number; height: number }) =>
+      x >= targetRect.x && x <= targetRect.x + targetRect.width && y >= targetRect.y && y <= targetRect.y + targetRect.height;
     const hasVisibleArrow = (arrow: Arrow) => Math.hypot(arrow.x2 - arrow.x1, arrow.y2 - arrow.y1) >= 6;
     const arrowHeadPoints = (arrow: Arrow): string => {
       const angle = Math.atan2(arrow.y2 - arrow.y1, arrow.x2 - arrow.x1);
@@ -1164,11 +1264,101 @@ class ScreenRecorder extends HTMLElement {
       }
     };
 
-    const rectEquals = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
-      a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
-
     const updateUndoState = () => {
       undoButton.disabled = history.length === 0;
+    };
+
+    const snapshotPreview = (): PreviewSnapshot => {
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      return {
+        imageData: new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height),
+        arrows: arrows.map((arrow) => ({ ...arrow })),
+        texts: texts.map((annotation) => ({ ...annotation }))
+      };
+    };
+
+    const restorePreview = (snapshot: PreviewSnapshot) => {
+      canvas.width = snapshot.imageData.width;
+      canvas.height = snapshot.imageData.height;
+      context.putImageData(snapshot.imageData, 0, 0);
+      arrows.splice(0, arrows.length, ...snapshot.arrows.map((arrow) => ({ ...arrow })));
+      texts.splice(0, texts.length, ...snapshot.texts.map((annotation) => ({ ...annotation })));
+      rect.x = 0;
+      rect.y = 0;
+      rect.width = 0;
+      rect.height = 0;
+      redrawSelection();
+      renderArrows();
+      renderTexts();
+    };
+
+    const applyCropPreview = () => {
+      if (activeTool !== "crop" || !hasValidCrop()) {
+        return false;
+      }
+      const bounds = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / Math.max(bounds.width, 1);
+      const scaleY = canvas.height / Math.max(bounds.height, 1);
+      const sourceX = Math.max(0, Math.round(rect.x * scaleX));
+      const sourceY = Math.max(0, Math.round(rect.y * scaleY));
+      const sourceWidth = Math.max(1, Math.round(rect.width * scaleX));
+      const sourceHeight = Math.max(1, Math.round(rect.height * scaleY));
+      const maxSourceX = Math.max(0, canvas.width - 1);
+      const maxSourceY = Math.max(0, canvas.height - 1);
+      const safeSourceX = Math.min(sourceX, maxSourceX);
+      const safeSourceY = Math.min(sourceY, maxSourceY);
+      const safeSourceWidth = Math.min(sourceWidth, canvas.width - safeSourceX);
+      const safeSourceHeight = Math.min(sourceHeight, canvas.height - safeSourceY);
+      if (safeSourceWidth < 1 || safeSourceHeight < 1) {
+        return false;
+      }
+
+      const snapshot = snapshotPreview();
+      const cropped = document.createElement("canvas");
+      cropped.width = safeSourceWidth;
+      cropped.height = safeSourceHeight;
+      const croppedContext = cropped.getContext("2d");
+      if (!croppedContext) {
+        return false;
+      }
+      croppedContext.drawImage(
+        canvas,
+        safeSourceX,
+        safeSourceY,
+        safeSourceWidth,
+        safeSourceHeight,
+        0,
+        0,
+        safeSourceWidth,
+        safeSourceHeight
+      );
+
+      canvas.width = safeSourceWidth;
+      canvas.height = safeSourceHeight;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(cropped, 0, 0);
+
+      for (const arrow of arrows) {
+        arrow.x1 -= rect.x;
+        arrow.y1 -= rect.y;
+        arrow.x2 -= rect.x;
+        arrow.y2 -= rect.y;
+      }
+      for (const annotation of texts) {
+        annotation.x -= rect.x;
+        annotation.y -= rect.y;
+      }
+
+      rect.x = 0;
+      rect.y = 0;
+      rect.width = 0;
+      rect.height = 0;
+      history.push({ type: "crop-preview", snapshot });
+      updateUndoState();
+      redrawSelection();
+      renderArrows();
+      renderTexts();
+      return true;
     };
 
     const removeTextEditor = () => {
@@ -1206,7 +1396,7 @@ class ScreenRecorder extends HTMLElement {
       editor.style.height = `${Math.max(32, height)}px`;
       editor.style.fontSize = `${activeTextSize}px`;
       editor.placeholder = "Type text";
-      previewWrap.append(editor);
+      previewStage.append(editor);
       activeTextEditor = editor;
       activeTextOrigin = { x, y };
       syncTextEditorContrast();
@@ -1273,8 +1463,11 @@ class ScreenRecorder extends HTMLElement {
       }
       const point = getPoint(event);
       if (activeTool === "crop") {
+        if (hasValidCrop() && !pointInRect(point.x, point.y, rect)) {
+          applyCropPreview();
+          return;
+        }
         dragging = true;
-        cropStartRect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
         startX = point.x;
         startY = point.y;
         rect.x = point.x;
@@ -1342,11 +1535,6 @@ class ScreenRecorder extends HTMLElement {
       } else if (activeTool === "text" && textPlacing) {
         textPlacing = false;
         activeTextEditor?.focus();
-      } else if (activeTool === "crop") {
-        if (!rectEquals(rect, cropStartRect)) {
-          history.push({ type: "crop", previousRect: cropStartRect });
-          updateUndoState();
-        }
       }
       if (canvas.hasPointerCapture(event.pointerId)) {
         canvas.releasePointerCapture(event.pointerId);
@@ -1379,11 +1567,7 @@ class ScreenRecorder extends HTMLElement {
         texts.pop();
         renderTexts();
       } else {
-        rect.x = action.previousRect.x;
-        rect.y = action.previousRect.y;
-        rect.width = action.previousRect.width;
-        rect.height = action.previousRect.height;
-        redrawSelection();
+        restorePreview(action.snapshot);
       }
 
       updateUndoState();
@@ -1409,6 +1593,9 @@ class ScreenRecorder extends HTMLElement {
       if (!arrowColorPicker.wrapper.contains(target) && !textColorPicker.wrapper.contains(target)) {
         closeColorMenus();
       }
+      if (activeTool === "crop" && hasValidCrop() && !canvas.contains(target) && !selection.contains(target)) {
+        applyCropPreview();
+      }
     };
 
     const closeOverlay = () => {
@@ -1423,15 +1610,10 @@ class ScreenRecorder extends HTMLElement {
       commitTextEditor();
       const output = document.createElement("canvas");
       const previewBounds = canvas.getBoundingClientRect();
-      const ratioX = frame.width / previewBounds.width;
-      const ratioY = frame.height / previewBounds.height;
-      const useCrop = activeTool === "crop" && hasValidCrop();
-      const sourceX = useCrop ? Math.round(rect.x * ratioX) : 0;
-      const sourceY = useCrop ? Math.round(rect.y * ratioY) : 0;
-      const sourceWidth = useCrop ? Math.max(1, Math.round(rect.width * ratioX)) : frame.width;
-      const sourceHeight = useCrop ? Math.max(1, Math.round(rect.height * ratioY)) : frame.height;
-      output.width = sourceWidth;
-      output.height = sourceHeight;
+      const ratioX = canvas.width / Math.max(previewBounds.width, 1);
+      const ratioY = canvas.height / Math.max(previewBounds.height, 1);
+      output.width = canvas.width;
+      output.height = canvas.height;
       const outputContext = output.getContext("2d");
       if (!outputContext) {
         this.setStatus("error");
@@ -1439,24 +1621,14 @@ class ScreenRecorder extends HTMLElement {
         return;
       }
 
-      outputContext.drawImage(
-        frame,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
-        output.width,
-        output.height
-      );
+      outputContext.drawImage(canvas, 0, 0);
 
       const arrowWidth = Number.parseFloat(this.cssVar("--screen-recorder-arrow-width", "4")) || 4;
       for (const arrow of arrows) {
-        const ax1 = Math.round(arrow.x1 * ratioX) - sourceX;
-        const ay1 = Math.round(arrow.y1 * ratioY) - sourceY;
-        const ax2 = Math.round(arrow.x2 * ratioX) - sourceX;
-        const ay2 = Math.round(arrow.y2 * ratioY) - sourceY;
+        const ax1 = Math.round(arrow.x1 * ratioX);
+        const ay1 = Math.round(arrow.y1 * ratioY);
+        const ax2 = Math.round(arrow.x2 * ratioX);
+        const ay2 = Math.round(arrow.y2 * ratioY);
         const lineWidth = Math.max(2, Math.round(arrowWidth * ((ratioX + ratioY) / 2)));
         const angle = Math.atan2(ay2 - ay1, ax2 - ax1);
         const headLength = Math.max(12, lineWidth * 3.4);
@@ -1493,9 +1665,9 @@ class ScreenRecorder extends HTMLElement {
       for (const annotation of texts) {
         const lines = annotation.text.split(/\r?\n/);
         for (let i = 0; i < lines.length; i += 1) {
-          const tx = Math.round(annotation.x * ratioX) - sourceX;
+          const tx = Math.round(annotation.x * ratioX);
           const scaledSize = Math.max(10, Math.round(annotation.sizePx * ((ratioX + ratioY) / 2)));
-          const ty = Math.round(annotation.y * ratioY) - sourceY + (i * scaledSize * textLineHeight);
+          const ty = Math.round(annotation.y * ratioY) + (i * scaledSize * textLineHeight);
           outputContext.save();
           outputContext.font = `${textWeight} ${scaledSize}px ${textFontFamily}`;
           outputContext.textBaseline = "top";
@@ -1565,7 +1737,7 @@ class ScreenRecorder extends HTMLElement {
     });
   }
 
-  private async openRecordingOverlay(blob: Blob, completedAt: Date): Promise<void> {
+  private async openRecordingOverlay(blob: Blob, completedAt: Date, estimatedDurationSeconds = 0): Promise<void> {
     const overlay = document.createElement("div");
     overlay.setAttribute("part", "preview-overlay capture-overlay");
 
@@ -1575,6 +1747,44 @@ class ScreenRecorder extends HTMLElement {
     const heading = document.createElement("div");
     heading.textContent = "Recording preview";
     heading.setAttribute("part", "preview-heading capture-heading");
+
+    const toolbar = document.createElement("div");
+    toolbar.setAttribute("part", "preview-toolbar capture-toolbar preview-recording-toolbar capture-recording-toolbar");
+
+    const trimEditor = document.createElement("div");
+    trimEditor.setAttribute("part", "preview-trim-editor capture-trim-editor");
+
+    const startHandle = document.createElement("button");
+    startHandle.type = "button";
+    startHandle.disabled = true;
+    startHandle.setAttribute("part", "preview-trim-handle capture-trim-handle preview-trim-start capture-trim-start");
+    startHandle.setAttribute("aria-label", "Trim start");
+
+    const startTime = document.createElement("span");
+    startTime.textContent = "0:00";
+    startTime.setAttribute("part", "preview-trim-time capture-trim-time preview-trim-start-time capture-trim-start-time");
+
+    const endHandle = document.createElement("button");
+    endHandle.type = "button";
+    endHandle.disabled = true;
+    endHandle.setAttribute("part", "preview-trim-handle capture-trim-handle preview-trim-end capture-trim-end");
+    endHandle.setAttribute("aria-label", "Trim end");
+
+    const endTime = document.createElement("span");
+    endTime.textContent = "0:00";
+    endTime.setAttribute("part", "preview-trim-time capture-trim-time preview-trim-end-time capture-trim-end-time");
+
+    const sliderWrap = document.createElement("div");
+    sliderWrap.setAttribute("part", "preview-trim-slider-wrap capture-trim-slider-wrap");
+    const sliderTrack = document.createElement("div");
+    sliderTrack.setAttribute("part", "preview-trim-track capture-trim-track");
+    const sliderActive = document.createElement("div");
+    sliderActive.setAttribute("part", "preview-trim-active capture-trim-active");
+    sliderActive.hidden = true;
+    sliderWrap.append(sliderTrack, sliderActive, startHandle, endHandle);
+
+    trimEditor.append(startTime, sliderWrap, endTime);
+    toolbar.append(trimEditor);
 
     const hint = document.createElement("div");
     hint.textContent = "Review the recording, then save it.";
@@ -1595,39 +1805,340 @@ class ScreenRecorder extends HTMLElement {
     const actions = document.createElement("div");
     actions.setAttribute("part", "preview-actions capture-actions");
 
-    const cancel = document.createElement("button");
-    cancel.type = "button";
+    const cancel = document.createElement("vaadin-button") as VaadinButtonElement;
     cancel.textContent = "Cancel";
     cancel.setAttribute("part", "preview-action-button capture-action-button preview-cancel-button capture-cancel-button");
 
-    const save = document.createElement("button");
-    save.type = "button";
+    const save = document.createElement("vaadin-button") as VaadinButtonElement;
     save.textContent = "Save recording";
+    save.disabled = true;
     save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
 
     actions.append(cancel, save);
-    panel.append(heading, hint, previewWrap, actions);
+    panel.append(heading, toolbar, hint, previewWrap, actions);
     overlay.append(panel);
+
+    const minTrimSpanSeconds = 0.05;
+    let duration = 0;
+    let trimStart = 0;
+    let trimEnd = 0;
+    let committedTrimStart = 0;
+    let committedTrimEnd = 0;
+    let metadataReady = false;
+    let saving = false;
+    let activeTrimHandle: "start" | "end" | null = null;
+    let adjustingTrim = false;
+    let trimLoopRaf: number | null = null;
+    const trimEpsilon = 0.02;
+    let trimInitialized = false;
+
+    const updateTrimUi = () => {
+      startTime.textContent = this.formatSeconds(trimStart);
+      endTime.textContent = this.formatSeconds(trimEnd);
+      const startPercent = duration > 0 ? (trimStart / duration) * 100 : 0;
+      const endPercent = duration > 0 ? (trimEnd / duration) * 100 : 100;
+      sliderActive.style.left = `${startPercent}%`;
+      sliderActive.style.width = `${Math.max(0, endPercent - startPercent)}%`;
+      startHandle.style.left = `${startPercent}%`;
+      endHandle.style.left = `${endPercent}%`;
+      const hasClip = metadataReady && trimEnd - trimStart < duration - minTrimSpanSeconds;
+      hint.textContent = hasClip
+        ? `Trimmed range: ${this.formatSeconds(trimStart)} - ${this.formatSeconds(trimEnd)}`
+        : "Review the recording, then save it.";
+    };
 
     const closeOverlay = () => {
       this.closePreviewOverlay();
+    };
+
+    const trimAtClientX = (clientX: number, side: "start" | "end") => {
+      if (!metadataReady || duration <= 0) {
+        return;
+      }
+      const bounds = sliderWrap.getBoundingClientRect();
+      const ratio = bounds.width > 0 ? this.clamp((clientX - bounds.left) / bounds.width, 0, 1) : 0;
+      const next = ratio * duration;
+      if (side === "start") {
+        trimStart = this.clamp(next, 0, Math.max(0, trimEnd - minTrimSpanSeconds));
+        video.currentTime = trimStart;
+      } else {
+        trimEnd = this.clamp(next, Math.min(duration, trimStart + minTrimSpanSeconds), duration);
+        video.currentTime = Math.max(trimStart, trimEnd - (trimEpsilon * 2));
+      }
+      updateTrimUi();
+    };
+
+    const applyDurationToTrim = (nextDuration: number) => {
+      if (!Number.isFinite(nextDuration) || nextDuration <= 0) {
+        return;
+      }
+      const hadMetadata = metadataReady;
+      const videoDuration = Number.isFinite(video.duration) && video.duration > 0
+        ? video.duration
+        : 0;
+      const seekableDuration = video.seekable.length > 0
+        ? video.seekable.end(video.seekable.length - 1)
+        : 0;
+      duration = Math.max(nextDuration, videoDuration, seekableDuration, estimatedDurationSeconds, 0);
+      metadataReady = duration > 0;
+      if (!metadataReady) {
+        return;
+      }
+      if (!trimInitialized || !hadMetadata) {
+        trimStart = 0;
+        trimEnd = duration;
+        committedTrimStart = trimStart;
+        committedTrimEnd = trimEnd;
+        trimInitialized = true;
+      } else {
+        trimStart = this.clamp(trimStart, 0, Math.max(0, duration - minTrimSpanSeconds));
+        trimEnd = this.clamp(trimEnd, Math.min(duration, trimStart + minTrimSpanSeconds), duration);
+        committedTrimStart = this.clamp(committedTrimStart, 0, Math.max(0, duration - minTrimSpanSeconds));
+        committedTrimEnd = this.clamp(committedTrimEnd, Math.min(duration, committedTrimStart + minTrimSpanSeconds), duration);
+      }
+      startHandle.disabled = !metadataReady;
+      endHandle.disabled = !metadataReady;
+      save.disabled = !metadataReady;
+      sliderActive.hidden = !metadataReady;
+      updateTrimUi();
+    };
+
+    const onLoadedMetadata = () => {
+      const videoDuration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      const seekableDuration = video.seekable.length > 0
+        ? video.seekable.end(video.seekable.length - 1)
+        : 0;
+      applyDurationToTrim(Math.max(videoDuration, seekableDuration, estimatedDurationSeconds, 0));
+    };
+
+    const clampCurrentToTrim = (mode: "seek" | "playback"): boolean => {
+      if (!metadataReady || saving) {
+        return false;
+      }
+      if (video.currentTime < trimStart) {
+        video.currentTime = trimStart;
+        return true;
+      }
+      if (video.currentTime > trimEnd + trimEpsilon) {
+        video.currentTime = mode === "playback" ? trimStart : trimEnd;
+        return true;
+      }
+      if (mode === "playback" && video.currentTime >= trimEnd - trimEpsilon) {
+        video.currentTime = trimStart;
+        return true;
+      }
+      return false;
+    };
+
+    const stopTrimLoop = () => {
+      if (trimLoopRaf !== null) {
+        window.cancelAnimationFrame(trimLoopRaf);
+        trimLoopRaf = null;
+      }
+    };
+
+    const runTrimLoop = () => {
+      if (video.paused || video.ended || saving) {
+        stopTrimLoop();
+        return;
+      }
+      clampCurrentToTrim("playback");
+      trimLoopRaf = window.requestAnimationFrame(runTrimLoop);
+    };
+
+    const startTrimLoop = () => {
+      stopTrimLoop();
+      trimLoopRaf = window.requestAnimationFrame(runTrimLoop);
+    };
+
+    const onTimeUpdate = () => {
+      if (!metadataReady) {
+        const runtimeDurationGuess = Math.max(
+          estimatedDurationSeconds,
+          video.currentTime + 0.5,
+          video.seekable.length > 0 ? video.seekable.end(video.seekable.length - 1) : 0
+        );
+        applyDurationToTrim(runtimeDurationGuess);
+      }
+      if (!metadataReady || saving || adjustingTrim) {
+        return;
+      }
+      if (video.paused) {
+        clampCurrentToTrim("seek");
+      } else {
+        clampCurrentToTrim("playback");
+      }
+    };
+
+    const onVideoSeeking = () => {
+      if (adjustingTrim) {
+        return;
+      }
+      clampCurrentToTrim("seek");
+    };
+
+    const onVideoPlay = () => {
+      if (adjustingTrim) {
+        video.pause();
+        return;
+      }
+      if (video.currentTime >= trimEnd - trimEpsilon || video.currentTime < trimStart) {
+        video.currentTime = trimStart;
+      } else {
+        clampCurrentToTrim("seek");
+      }
+      startTrimLoop();
+    };
+
+    const onVideoPauseOrEnded = () => {
+      stopTrimLoop();
+    };
+
+    const commitTrimChange = () => {
+      if (!metadataReady || saving) {
+        return;
+      }
+      const changed = Math.abs(trimStart - committedTrimStart) >= 0.001 || Math.abs(trimEnd - committedTrimEnd) >= 0.001;
+      if (!changed) {
+        return;
+      }
+      committedTrimStart = trimStart;
+      committedTrimEnd = trimEnd;
     };
 
     const onCancel = () => {
       closeOverlay();
     };
 
-    const onSave = () => {
-      this.downloadBlob(blob, this.buildFilename(completedAt));
+    const onSave = async () => {
+      if (!metadataReady || saving) {
+        return;
+      }
+      saving = true;
+      save.disabled = true;
+      cancel.disabled = true;
+      startHandle.disabled = true;
+      endHandle.disabled = true;
+      const previousLabel = save.textContent;
+      save.textContent = "Saving...";
+      video.pause();
+
+      let outputBlob: Blob = blob;
+      const requiresTrim = trimStart > minTrimSpanSeconds || trimEnd < duration - minTrimSpanSeconds;
+      if (requiresTrim) {
+        try {
+          outputBlob = await this.trimRecordingFromElement(video, trimStart, trimEnd, blob.type || "video/webm");
+        } catch {
+          try {
+            outputBlob = await this.trimRecordingBlob(blob, trimStart, trimEnd);
+          } catch {
+            outputBlob = blob;
+            hint.textContent = "Trim export not supported in this browser. Saved full recording.";
+          }
+        }
+      }
+      this.downloadBlob(outputBlob, this.buildFilename(completedAt));
+
       this.setStatus("downloaded");
       this.scheduleIdleReset();
       closeOverlay();
     };
 
+    const onStartHandlePointerDown = (event: PointerEvent) => {
+      if (!metadataReady || saving) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      adjustingTrim = true;
+      video.pause();
+      stopTrimLoop();
+      activeTrimHandle = "start";
+      window.addEventListener("pointermove", onSliderPointerMove);
+      window.addEventListener("pointerup", onSliderPointerUp);
+      window.addEventListener("pointercancel", onSliderPointerUp);
+    };
+
+    const onEndHandlePointerDown = (event: PointerEvent) => {
+      if (!metadataReady || saving) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      adjustingTrim = true;
+      video.pause();
+      stopTrimLoop();
+      activeTrimHandle = "end";
+      window.addEventListener("pointermove", onSliderPointerMove);
+      window.addEventListener("pointerup", onSliderPointerUp);
+      window.addEventListener("pointercancel", onSliderPointerUp);
+    };
+
+    const onSliderPointerDown = (event: PointerEvent) => {
+      if (!metadataReady || saving) {
+        return;
+      }
+      const bounds = sliderWrap.getBoundingClientRect();
+      const x = this.clamp(event.clientX - bounds.left, 0, bounds.width);
+      const startX = duration > 0 ? (trimStart / duration) * bounds.width : 0;
+      const endX = duration > 0 ? (trimEnd / duration) * bounds.width : bounds.width;
+      activeTrimHandle = Math.abs(x - startX) <= Math.abs(x - endX) ? "start" : "end";
+      adjustingTrim = true;
+      video.pause();
+      stopTrimLoop();
+      trimAtClientX(event.clientX, activeTrimHandle);
+      window.addEventListener("pointermove", onSliderPointerMove);
+      window.addEventListener("pointerup", onSliderPointerUp);
+      window.addEventListener("pointercancel", onSliderPointerUp);
+    };
+
+    const onSliderPointerMove = (event: PointerEvent) => {
+      if (!activeTrimHandle) {
+        return;
+      }
+      trimAtClientX(event.clientX, activeTrimHandle);
+    };
+
+    const onSliderPointerUp = () => {
+      if (!activeTrimHandle) {
+        return;
+      }
+      activeTrimHandle = null;
+      adjustingTrim = false;
+      window.removeEventListener("pointermove", onSliderPointerMove);
+      window.removeEventListener("pointerup", onSliderPointerUp);
+      window.removeEventListener("pointercancel", onSliderPointerUp);
+      commitTrimChange();
+    };
+
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("durationchange", onLoadedMetadata);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("seeking", onVideoSeeking);
+    video.addEventListener("play", onVideoPlay);
+    video.addEventListener("pause", onVideoPauseOrEnded);
+    video.addEventListener("ended", onVideoPauseOrEnded);
+    startHandle.addEventListener("pointerdown", onStartHandlePointerDown);
+    endHandle.addEventListener("pointerdown", onEndHandlePointerDown);
+    sliderWrap.addEventListener("pointerdown", onSliderPointerDown);
     cancel.addEventListener("click", onCancel);
     save.addEventListener("click", onSave);
 
     this.setPreviewOverlay(overlay, () => {
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("durationchange", onLoadedMetadata);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("seeking", onVideoSeeking);
+      video.removeEventListener("play", onVideoPlay);
+      video.removeEventListener("pause", onVideoPauseOrEnded);
+      video.removeEventListener("ended", onVideoPauseOrEnded);
+      stopTrimLoop();
+      startHandle.removeEventListener("pointerdown", onStartHandlePointerDown);
+      endHandle.removeEventListener("pointerdown", onEndHandlePointerDown);
+      sliderWrap.removeEventListener("pointerdown", onSliderPointerDown);
+      window.removeEventListener("pointermove", onSliderPointerMove);
+      window.removeEventListener("pointerup", onSliderPointerUp);
+      window.removeEventListener("pointercancel", onSliderPointerUp);
       cancel.removeEventListener("click", onCancel);
       save.removeEventListener("click", onSave);
       video.pause();
@@ -1635,10 +2146,313 @@ class ScreenRecorder extends HTMLElement {
       URL.revokeObjectURL(url);
     });
 
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      onLoadedMetadata();
+    }
+    if (!metadataReady && estimatedDurationSeconds > 0) {
+      applyDurationToTrim(estimatedDurationSeconds);
+    }
+
     try {
       await video.play();
     } catch {
       // User gesture policy may block autoplay. Controls remain available.
+    }
+  }
+
+  private formatSeconds(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      return "0:00";
+    }
+    const whole = Math.floor(seconds);
+    const minutes = Math.floor(whole / 60);
+    const remainder = whole % 60;
+    return `${minutes}:${remainder.toString().padStart(2, "0")}`;
+  }
+
+  private async trimRecordingBlob(blob: Blob, startSeconds: number, endSeconds: number): Promise<Blob> {
+    const sourceUrl = URL.createObjectURL(blob);
+    const video = document.createElement("video") as HTMLVideoElement & {
+      captureStream?: () => MediaStream;
+      mozCaptureStream?: () => MediaStream;
+    };
+    video.src = sourceUrl;
+    video.preload = "metadata";
+    video.playsInline = true;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.volume = 0;
+    video.style.position = "fixed";
+    video.style.left = "-99999px";
+    video.style.top = "0";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    video.style.opacity = "0";
+    video.style.pointerEvents = "none";
+    document.body.append(video);
+    video.load();
+
+    const waitFor = (
+      eventName: "loadedmetadata" | "seeked",
+      isReady: () => boolean
+    ) =>
+      new Promise<void>((resolve, reject) => {
+        if (isReady()) {
+          resolve();
+          return;
+        }
+        const onSuccess = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error(`Video ${eventName} failed`));
+        };
+        const cleanup = () => {
+          video.removeEventListener(eventName, onSuccess);
+          video.removeEventListener("error", onError);
+        };
+        video.addEventListener(eventName, onSuccess, { once: true });
+        video.addEventListener("error", onError, { once: true });
+      });
+
+    let stream: MediaStream | null = null;
+    try {
+      await waitFor("loadedmetadata", () => video.readyState >= HTMLMediaElement.HAVE_METADATA);
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      if (duration <= 0) {
+        throw new Error("Recording duration unavailable");
+      }
+
+      const clipStart = this.clamp(startSeconds, 0, duration);
+      const clipEnd = this.clamp(endSeconds, clipStart + 0.05, duration);
+      if (clipEnd - clipStart >= duration - 0.05) {
+        return blob;
+      }
+
+      stream = video.captureStream?.() ?? video.mozCaptureStream?.() ?? null;
+      if (!stream) {
+        throw new Error("Video capture stream is not supported");
+      }
+
+      const mimeType = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm"
+      ].find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      const chunks: BlobPart[] = [];
+      const recordedBlob = new Promise<Blob>((resolve, reject) => {
+        recorder.addEventListener("dataavailable", (event) => {
+          if (event.data.size > 0) {
+            chunks.push(event.data);
+          }
+        });
+        recorder.addEventListener("error", () => {
+          reject(new Error("Failed to encode trimmed recording"));
+        });
+        recorder.addEventListener("stop", () => {
+          const outputType = mimeType ?? blob.type ?? "video/webm";
+          resolve(new Blob(chunks, { type: outputType }));
+        }, { once: true });
+      });
+
+      video.currentTime = clipStart;
+      await waitFor("seeked", () => Math.abs(video.currentTime - clipStart) < 0.02);
+      recorder.start(100);
+      try {
+        await video.play();
+      } catch {
+        video.muted = true;
+        video.defaultMuted = true;
+        await video.play();
+      }
+
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          cleanup();
+          resolve();
+        };
+        const checkEnd = () => {
+          if (video.currentTime >= clipEnd || video.ended) {
+            finish();
+          } else {
+            rafId = window.requestAnimationFrame(checkEnd);
+          }
+        };
+        const onEnded = () => finish();
+        const onTimeUpdate = () => {
+          if (video.currentTime >= clipEnd) {
+            finish();
+          }
+        };
+        const cleanup = () => {
+          video.removeEventListener("ended", onEnded);
+          video.removeEventListener("timeupdate", onTimeUpdate);
+          if (rafId !== null) {
+            window.cancelAnimationFrame(rafId);
+          }
+        };
+
+        let rafId: number | null = window.requestAnimationFrame(checkEnd);
+        video.addEventListener("ended", onEnded);
+        video.addEventListener("timeupdate", onTimeUpdate);
+      });
+
+      video.pause();
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      const trimmed = await recordedBlob;
+      if (trimmed.size === 0) {
+        throw new Error("Trimmed recording is empty");
+      }
+      return trimmed;
+    } finally {
+      video.pause();
+      video.src = "";
+      video.remove();
+      URL.revokeObjectURL(sourceUrl);
+      stream?.getTracks().forEach((track) => track.stop());
+    }
+  }
+
+  private async trimRecordingFromElement(
+    sourceVideo: HTMLVideoElement & { captureStream?: () => MediaStream; mozCaptureStream?: () => MediaStream },
+    startSeconds: number,
+    endSeconds: number,
+    fallbackType: string
+  ): Promise<Blob> {
+    const waitFor = (
+      eventName: "loadedmetadata" | "seeked",
+      isReady: () => boolean
+    ) =>
+      new Promise<void>((resolve, reject) => {
+        if (isReady()) {
+          resolve();
+          return;
+        }
+        const onSuccess = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error(`Video ${eventName} failed`));
+        };
+        const cleanup = () => {
+          sourceVideo.removeEventListener(eventName, onSuccess);
+          sourceVideo.removeEventListener("error", onError);
+        };
+        sourceVideo.addEventListener(eventName, onSuccess, { once: true });
+        sourceVideo.addEventListener("error", onError, { once: true });
+      });
+
+    await waitFor("loadedmetadata", () => sourceVideo.readyState >= HTMLMediaElement.HAVE_METADATA);
+    const duration = Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
+      ? sourceVideo.duration
+      : (sourceVideo.seekable.length > 0 ? sourceVideo.seekable.end(sourceVideo.seekable.length - 1) : 0);
+    if (duration <= 0) {
+      throw new Error("Recording duration unavailable");
+    }
+
+    const clipStart = this.clamp(startSeconds, 0, duration);
+    const clipEnd = this.clamp(endSeconds, clipStart + 0.05, duration);
+    if (clipEnd - clipStart >= duration - 0.05) {
+      throw new Error("Trim range equals full duration");
+    }
+
+    const stream = sourceVideo.captureStream?.() ?? sourceVideo.mozCaptureStream?.() ?? null;
+    if (!stream) {
+      throw new Error("Video capture stream is not supported");
+    }
+
+    const mimeType = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm"
+    ].find((type) => MediaRecorder.isTypeSupported(type));
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    const chunks: BlobPart[] = [];
+    const recordedBlob = new Promise<Blob>((resolve, reject) => {
+      recorder.addEventListener("dataavailable", (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      });
+      recorder.addEventListener("error", () => {
+        reject(new Error("Failed to encode trimmed recording"));
+      });
+      recorder.addEventListener("stop", () => {
+        const outputType = mimeType ?? fallbackType ?? "video/webm";
+        resolve(new Blob(chunks, { type: outputType }));
+      }, { once: true });
+    });
+
+    const previousMuted = sourceVideo.muted;
+    const previousVolume = sourceVideo.volume;
+    sourceVideo.muted = true;
+    sourceVideo.defaultMuted = true;
+    sourceVideo.volume = 0;
+
+    try {
+      sourceVideo.currentTime = clipStart;
+      await waitFor("seeked", () => Math.abs(sourceVideo.currentTime - clipStart) < 0.02);
+      recorder.start(100);
+      await sourceVideo.play();
+
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          cleanup();
+          resolve();
+        };
+        const checkEnd = () => {
+          if (sourceVideo.currentTime >= clipEnd || sourceVideo.ended) {
+            finish();
+          } else {
+            rafId = window.requestAnimationFrame(checkEnd);
+          }
+        };
+        const onEnded = () => finish();
+        const onTimeUpdate = () => {
+          if (sourceVideo.currentTime >= clipEnd) {
+            finish();
+          }
+        };
+        const cleanup = () => {
+          sourceVideo.removeEventListener("ended", onEnded);
+          sourceVideo.removeEventListener("timeupdate", onTimeUpdate);
+          if (rafId !== null) {
+            window.cancelAnimationFrame(rafId);
+          }
+        };
+
+        let rafId: number | null = window.requestAnimationFrame(checkEnd);
+        sourceVideo.addEventListener("ended", onEnded);
+        sourceVideo.addEventListener("timeupdate", onTimeUpdate);
+      });
+
+      sourceVideo.pause();
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      const trimmed = await recordedBlob;
+      if (trimmed.size === 0) {
+        throw new Error("Trimmed recording is empty");
+      }
+      return trimmed;
+    } finally {
+      sourceVideo.pause();
+      sourceVideo.muted = previousMuted;
+      sourceVideo.volume = previousVolume;
+      stream.getTracks().forEach((track) => track.stop());
     }
   }
 

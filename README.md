@@ -79,6 +79,8 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-panel`
 - `preview-toolbar`
 - `capture-toolbar`
+- `preview-recording-toolbar`
+- `capture-recording-toolbar`
 - `preview-toolbar-button`
 - `capture-toolbar-button`
 - `preview-crop-button`
@@ -101,6 +103,26 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-color-menu`
 - `preview-color-option`
 - `capture-color-option`
+- `preview-trim-editor`
+- `capture-trim-editor`
+- `preview-trim-slider-wrap`
+- `capture-trim-slider-wrap`
+- `preview-trim-track`
+- `capture-trim-track`
+- `preview-trim-active`
+- `capture-trim-active`
+- `preview-trim-handle`
+- `capture-trim-handle`
+- `preview-trim-start`
+- `capture-trim-start`
+- `preview-trim-end`
+- `capture-trim-end`
+- `preview-trim-time`
+- `capture-trim-time`
+- `preview-trim-start-time`
+- `capture-trim-start-time`
+- `preview-trim-end-time`
+- `capture-trim-end-time`
 - `preview-text-size-select`
 - `capture-text-size-select`
 - `preview-undo-button`
@@ -111,6 +133,8 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-hint`
 - `preview-content-wrap`
 - `capture-preview-wrap`
+- `preview-stage`
+- `capture-preview-stage`
 - `preview-media`
 - `capture-preview`
 - `recording-preview`
@@ -162,6 +186,7 @@ For common styling, set CSS custom properties globally (for example on `:root`) 
   --screen-recorder-indicator-recording-color: #ff5f57;
   --screen-recorder-indicator-ready-color: #63d18c;
   --screen-recorder-indicator-error-color: #ffb54d;
+  --screen-recorder-trim-accent-color: #7ec8ff;
   --screen-recorder-arrow-color: #ff5f57;
   --screen-recorder-arrow-width: 4px;
   --screen-recorder-text-annotation-color: #ffffff;
