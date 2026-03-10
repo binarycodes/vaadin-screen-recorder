@@ -83,6 +83,10 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-toolbar-button`
 - `preview-crop-button`
 - `capture-crop-button`
+- `preview-arrow-button`
+- `capture-arrow-button`
+- `preview-undo-button`
+- `capture-undo-button`
 - `preview-heading`
 - `capture-heading`
 - `preview-hint`
@@ -94,6 +98,12 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `recording-preview`
 - `preview-selection`
 - `capture-selection`
+- `preview-annotations`
+- `capture-annotations`
+- `preview-arrow`
+- `capture-arrow`
+- `preview-arrow-head`
+- `capture-arrow-head`
 - `preview-actions`
 - `capture-actions`
 - `preview-action-button`
@@ -130,6 +140,8 @@ For common styling, set CSS custom properties globally (for example on `:root`) 
   --screen-recorder-indicator-recording-color: #ff5f57;
   --screen-recorder-indicator-ready-color: #63d18c;
   --screen-recorder-indicator-error-color: #ffb54d;
+  --screen-recorder-arrow-color: #ff5f57;
+  --screen-recorder-arrow-width: 4px;
   --screen-recorder-recording-preview-background: #000;
   --screen-recorder-recording-preview-max-height: 62vh;
 }

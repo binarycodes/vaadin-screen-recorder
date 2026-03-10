@@ -178,7 +178,12 @@ class ScreenRecorder extends HTMLElement {
         color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
       }
 
-      [part~="capture-crop-button"][aria-pressed="true"] {
+      [part~="capture-toolbar-button"]:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      [part~="capture-toolbar-button"][aria-pressed="true"] {
         background: var(--screen-recorder-toolbar-button-active-background, #355a80);
         color: var(--screen-recorder-toolbar-button-active-color, #f4f9ff);
       }
@@ -224,6 +229,25 @@ class ScreenRecorder extends HTMLElement {
         background: var(--screen-recorder-selection-background, rgba(126, 208, 255, 0.18));
         pointer-events: none;
         display: none;
+      }
+
+      [part~="capture-annotations"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      [part~="capture-arrow"] {
+        stroke: var(--screen-recorder-arrow-color, #ff5f57);
+        stroke-width: var(--screen-recorder-arrow-width, 4px);
+        fill: none;
+        stroke-linecap: round;
+      }
+
+      [part~="capture-arrow-head"] {
+        fill: var(--screen-recorder-arrow-color, #ff5f57);
       }
 
       [part~="capture-actions"] {
@@ -703,14 +727,30 @@ class ScreenRecorder extends HTMLElement {
     cropToggle.setAttribute("aria-label", "Crop");
     cropToggle.title = "Crop";
     cropToggle.setAttribute("aria-pressed", "false");
-    toolbar.append(cropToggle);
+
+    const arrowToggle = document.createElement("button");
+    arrowToggle.type = "button";
+    arrowToggle.textContent = "➤";
+    arrowToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-arrow-button capture-arrow-button");
+    arrowToggle.setAttribute("aria-label", "Arrow");
+    arrowToggle.title = "Arrow";
+    arrowToggle.setAttribute("aria-pressed", "false");
+
+    const undoButton = document.createElement("button");
+    undoButton.type = "button";
+    undoButton.textContent = "↶";
+    undoButton.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-undo-button capture-undo-button");
+    undoButton.setAttribute("aria-label", "Undo");
+    undoButton.title = "Undo";
+    undoButton.disabled = true;
+    toolbar.append(cropToggle, arrowToggle, undoButton);
 
     const heading = document.createElement("div");
     heading.textContent = "Capture preview";
     heading.setAttribute("part", "preview-heading capture-heading");
 
     const hint = document.createElement("div");
-    hint.textContent = "Save the full image, or enable Crop and drag over the preview.";
+    hint.textContent = "Use Crop to save a selected area, or Arrow to annotate before saving.";
     hint.setAttribute("part", "preview-hint capture-hint");
 
     const previewWrap = document.createElement("div");
@@ -734,7 +774,13 @@ class ScreenRecorder extends HTMLElement {
     const selection = document.createElement("div");
     selection.setAttribute("part", "preview-selection capture-selection");
 
-    previewWrap.append(canvas, selection);
+    const annotations = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    annotations.setAttribute("part", "preview-annotations capture-annotations");
+    annotations.setAttribute("aria-hidden", "true");
+    const arrowsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    annotations.append(arrowsLayer);
+
+    previewWrap.append(canvas, annotations, selection);
 
     const actions = document.createElement("div");
     actions.setAttribute("part", "preview-actions capture-actions");
@@ -753,27 +799,81 @@ class ScreenRecorder extends HTMLElement {
     panel.append(heading, toolbar, hint, previewWrap, actions);
     overlay.append(panel);
 
+    type Arrow = { x1: number; y1: number; x2: number; y2: number };
+    type EditAction = { type: "arrow" } | { type: "crop"; previousRect: { x: number; y: number; width: number; height: number } };
     const rect = { x: 0, y: 0, width: 0, height: 0 };
-    let cropMode = false;
+    const arrows: Arrow[] = [];
+    const history: EditAction[] = [];
+    let draftArrow: Arrow | null = null;
+    let activeTool: "crop" | "arrow" | null = null;
     let dragging = false;
     let startX = 0;
     let startY = 0;
+    let cropStartRect = { x: 0, y: 0, width: 0, height: 0 };
 
     const hasValidCrop = () => rect.width >= 2 && rect.height >= 2;
-    const setCropMode = (enabled: boolean) => {
-      cropMode = enabled;
-      cropToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-      if (!enabled) {
+    const hasVisibleArrow = (arrow: Arrow) => Math.hypot(arrow.x2 - arrow.x1, arrow.y2 - arrow.y1) >= 6;
+    const arrowHeadPoints = (arrow: Arrow): string => {
+      const angle = Math.atan2(arrow.y2 - arrow.y1, arrow.x2 - arrow.x1);
+      const headLength = 18;
+      const headWidth = 6;
+      const leftX = arrow.x2 - headLength * Math.cos(angle) + headWidth * Math.sin(angle);
+      const leftY = arrow.y2 - headLength * Math.sin(angle) - headWidth * Math.cos(angle);
+      const rightX = arrow.x2 - headLength * Math.cos(angle) - headWidth * Math.sin(angle);
+      const rightY = arrow.y2 - headLength * Math.sin(angle) + headWidth * Math.cos(angle);
+      return `${arrow.x2},${arrow.y2} ${leftX},${leftY} ${rightX},${rightY}`;
+    };
+
+    const renderArrows = () => {
+      const bounds = canvas.getBoundingClientRect();
+      annotations.setAttribute("viewBox", `0 0 ${Math.max(bounds.width, 1)} ${Math.max(bounds.height, 1)}`);
+      arrowsLayer.replaceChildren();
+
+      for (const arrow of [...arrows, ...(draftArrow ? [draftArrow] : [])]) {
+        if (!hasVisibleArrow(arrow)) {
+          continue;
+        }
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("part", "preview-arrow capture-arrow");
+        line.setAttribute("x1", `${arrow.x1}`);
+        line.setAttribute("y1", `${arrow.y1}`);
+        line.setAttribute("x2", `${arrow.x2}`);
+        line.setAttribute("y2", `${arrow.y2}`);
+
+        const head = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        head.setAttribute("part", "preview-arrow-head capture-arrow-head");
+        head.setAttribute("points", arrowHeadPoints(arrow));
+
+        arrowsLayer.append(line, head);
+      }
+    };
+
+    const rectEquals = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+      a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+
+    const updateUndoState = () => {
+      undoButton.disabled = history.length === 0;
+    };
+
+    const setTool = (tool: "crop" | "arrow" | null) => {
+      activeTool = tool;
+      cropToggle.setAttribute("aria-pressed", tool === "crop" ? "true" : "false");
+      arrowToggle.setAttribute("aria-pressed", tool === "arrow" ? "true" : "false");
+      if (tool !== "crop") {
         rect.x = 0;
         rect.y = 0;
         rect.width = 0;
         rect.height = 0;
       }
+      if (tool !== "arrow") {
+        draftArrow = null;
+      }
       redrawSelection();
+      renderArrows();
     };
 
     const redrawSelection = () => {
-      if (!cropMode || !hasValidCrop()) {
+      if (activeTool !== "crop" || !hasValidCrop()) {
         selection.style.display = "none";
         return;
       }
@@ -793,45 +893,96 @@ class ScreenRecorder extends HTMLElement {
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (!cropMode) {
+      if (!activeTool) {
         return;
       }
       dragging = true;
       const point = getPoint(event);
-      startX = point.x;
-      startY = point.y;
-      rect.x = point.x;
-      rect.y = point.y;
-      rect.width = 0;
-      rect.height = 0;
-      redrawSelection();
+      if (activeTool === "crop") {
+        cropStartRect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        startX = point.x;
+        startY = point.y;
+        rect.x = point.x;
+        rect.y = point.y;
+        rect.width = 0;
+        rect.height = 0;
+        redrawSelection();
+      } else {
+        draftArrow = { x1: point.x, y1: point.y, x2: point.x, y2: point.y };
+        renderArrows();
+      }
       canvas.setPointerCapture(event.pointerId);
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!cropMode || !dragging) {
+      if (!activeTool || !dragging) {
         return;
       }
       const point = getPoint(event);
-      rect.x = Math.min(startX, point.x);
-      rect.y = Math.min(startY, point.y);
-      rect.width = Math.abs(point.x - startX);
-      rect.height = Math.abs(point.y - startY);
-      redrawSelection();
+      if (activeTool === "crop") {
+        rect.x = Math.min(startX, point.x);
+        rect.y = Math.min(startY, point.y);
+        rect.width = Math.abs(point.x - startX);
+        rect.height = Math.abs(point.y - startY);
+        redrawSelection();
+      } else if (draftArrow) {
+        draftArrow.x2 = point.x;
+        draftArrow.y2 = point.y;
+        renderArrows();
+      }
     };
 
     const onPointerUp = (event: PointerEvent) => {
-      if (!cropMode) {
+      if (!activeTool) {
         return;
       }
       dragging = false;
+      if (activeTool === "arrow" && draftArrow) {
+        if (hasVisibleArrow(draftArrow)) {
+          arrows.push({ ...draftArrow });
+          history.push({ type: "arrow" });
+          updateUndoState();
+        }
+        draftArrow = null;
+        renderArrows();
+      } else if (activeTool === "crop") {
+        if (!rectEquals(rect, cropStartRect)) {
+          history.push({ type: "crop", previousRect: cropStartRect });
+          updateUndoState();
+        }
+      }
       if (canvas.hasPointerCapture(event.pointerId)) {
         canvas.releasePointerCapture(event.pointerId);
       }
     };
 
     const onCropToggle = () => {
-      setCropMode(!cropMode);
+      setTool(activeTool === "crop" ? null : "crop");
+    };
+
+    const onArrowToggle = () => {
+      setTool(activeTool === "arrow" ? null : "arrow");
+    };
+
+    const onUndo = () => {
+      const action = history.pop();
+      if (!action) {
+        updateUndoState();
+        return;
+      }
+
+      if (action.type === "arrow") {
+        arrows.pop();
+        renderArrows();
+      } else {
+        rect.x = action.previousRect.x;
+        rect.y = action.previousRect.y;
+        rect.width = action.previousRect.width;
+        rect.height = action.previousRect.height;
+        redrawSelection();
+      }
+
+      updateUndoState();
     };
 
     const closeOverlay = () => {
@@ -847,7 +998,7 @@ class ScreenRecorder extends HTMLElement {
       const previewBounds = canvas.getBoundingClientRect();
       const ratioX = frame.width / previewBounds.width;
       const ratioY = frame.height / previewBounds.height;
-      const useCrop = cropMode && hasValidCrop();
+      const useCrop = activeTool === "crop" && hasValidCrop();
       const sourceX = useCrop ? Math.round(rect.x * ratioX) : 0;
       const sourceY = useCrop ? Math.round(rect.y * ratioY) : 0;
       const sourceWidth = useCrop ? Math.max(1, Math.round(rect.width * ratioX)) : frame.width;
@@ -872,6 +1023,40 @@ class ScreenRecorder extends HTMLElement {
         output.width,
         output.height
       );
+
+      const arrowColor = this.cssVar("--screen-recorder-arrow-color", "#ff5f57");
+      const arrowWidth = Number.parseFloat(this.cssVar("--screen-recorder-arrow-width", "4")) || 4;
+      for (const arrow of arrows) {
+        const ax1 = Math.round(arrow.x1 * ratioX) - sourceX;
+        const ay1 = Math.round(arrow.y1 * ratioY) - sourceY;
+        const ax2 = Math.round(arrow.x2 * ratioX) - sourceX;
+        const ay2 = Math.round(arrow.y2 * ratioY) - sourceY;
+        const lineWidth = Math.max(2, Math.round(arrowWidth * ((ratioX + ratioY) / 2)));
+        const angle = Math.atan2(ay2 - ay1, ax2 - ax1);
+        const headLength = Math.max(12, lineWidth * 3.4);
+        const headWidth = Math.max(4, lineWidth * 1.3);
+        const leftX = ax2 - headLength * Math.cos(angle) + headWidth * Math.sin(angle);
+        const leftY = ay2 - headLength * Math.sin(angle) - headWidth * Math.cos(angle);
+        const rightX = ax2 - headLength * Math.cos(angle) - headWidth * Math.sin(angle);
+        const rightY = ay2 - headLength * Math.sin(angle) + headWidth * Math.cos(angle);
+
+        outputContext.save();
+        outputContext.strokeStyle = arrowColor;
+        outputContext.lineWidth = lineWidth;
+        outputContext.lineCap = "round";
+        outputContext.beginPath();
+        outputContext.moveTo(ax1, ay1);
+        outputContext.lineTo(ax2, ay2);
+        outputContext.stroke();
+        outputContext.fillStyle = arrowColor;
+        outputContext.beginPath();
+        outputContext.moveTo(ax2, ay2);
+        outputContext.lineTo(leftX, leftY);
+        outputContext.lineTo(rightX, rightY);
+        outputContext.closePath();
+        outputContext.fill();
+        outputContext.restore();
+      }
 
       const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, "image/png"));
       if (!blob) {
@@ -899,6 +1084,8 @@ class ScreenRecorder extends HTMLElement {
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
     cropToggle.addEventListener("click", onCropToggle);
+    arrowToggle.addEventListener("click", onArrowToggle);
+    undoButton.addEventListener("click", onUndo);
     cancel.addEventListener("click", onCancel);
     save.addEventListener("click", onSave);
 
@@ -907,6 +1094,8 @@ class ScreenRecorder extends HTMLElement {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       cropToggle.removeEventListener("click", onCropToggle);
+      arrowToggle.removeEventListener("click", onArrowToggle);
+      undoButton.removeEventListener("click", onUndo);
       cancel.removeEventListener("click", onCancel);
       save.removeEventListener("click", onSave);
       frame.close();
