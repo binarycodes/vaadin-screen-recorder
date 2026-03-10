@@ -39,7 +39,7 @@ class ScreenRecorder extends HTMLElement {
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
-      .shell {
+      [part~="shell"] {
         position: fixed;
         top: 24px;
         right: 24px;
@@ -61,18 +61,18 @@ class ScreenRecorder extends HTMLElement {
         touch-action: none;
       }
 
-      .shell:active {
+      [part~="shell"]:active {
         cursor: grabbing;
       }
 
-      .handle {
+      [part~="handle"] {
         display: flex;
         align-items: center;
         gap: 8px;
         padding-right: 6px;
       }
 
-      .dot {
+      [part~="status-indicator"] {
         width: 10px;
         height: 10px;
         border-radius: 999px;
@@ -80,7 +80,7 @@ class ScreenRecorder extends HTMLElement {
         box-shadow: 0 0 12px color-mix(in srgb, var(--indicator-color, #8ea4bc) 60%, transparent);
       }
 
-      .status {
+      [part~="status-badge"] {
         min-width: 74px;
         font-size: 11px;
         font-weight: 700;
@@ -89,7 +89,7 @@ class ScreenRecorder extends HTMLElement {
         color: #c8d5e3;
       }
 
-      button {
+      [part~="button"] {
         appearance: none;
         border: 0;
         border-radius: 999px;
@@ -102,43 +102,136 @@ class ScreenRecorder extends HTMLElement {
         transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease;
       }
 
-      button:hover {
+      [part~="button"]:hover {
         transform: translateY(-1px);
       }
 
-      button:disabled {
+      [part~="button"]:disabled {
         cursor: not-allowed;
         opacity: 0.45;
         transform: none;
       }
 
-      .record {
+      [part~="record-button"] {
         min-width: 108px;
         background: linear-gradient(135deg, #ff6b57, #ff2f54);
         color: #fff6f4;
       }
 
-      .capture {
+      [part~="capture-button"] {
         background: linear-gradient(135deg, #ffe6a7, #ffbf5e);
         color: #3c2500;
       }
 
-      .download {
+      [part~="download-button"] {
         background: linear-gradient(135deg, #d7e8ff, #a8c9ff);
         color: #10223a;
       }
 
+      [part~="capture-overlay"] {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        background: rgba(4, 8, 13, 0.82);
+        display: grid;
+        place-items: center;
+      }
+
+      [part~="capture-panel"] {
+        width: min(92vw, 1200px);
+        max-height: 92vh;
+        padding: 18px;
+        border-radius: 24px;
+        background: #0c1621;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #e7eef7;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      [part~="capture-heading"] {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      [part~="capture-hint"] {
+        font-size: 13px;
+        color: #9cb2ca;
+        margin-bottom: 14px;
+      }
+
+      [part~="capture-preview-wrap"] {
+        position: relative;
+        overflow: auto;
+        max-height: calc(92vh - 150px);
+        border-radius: 16px;
+        background: #08111a;
+      }
+
+      [part~="capture-preview"] {
+        display: block;
+        cursor: crosshair;
+      }
+
+      [part~="capture-selection"] {
+        position: absolute;
+        border: 2px solid #7ed0ff;
+        background: rgba(126, 208, 255, 0.18);
+        pointer-events: none;
+        display: none;
+      }
+
+      [part~="capture-actions"] {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      [part~="capture-action-button"] {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease;
+      }
+
+      [part~="capture-action-button"]:hover {
+        transform: translateY(-1px);
+      }
+
+      [part~="capture-action-button"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+        transform: none;
+      }
+
+      [part~="capture-cancel-button"] {
+        background: #243445;
+        color: #eef4fb;
+      }
+
+      [part~="capture-save-button"] {
+        background: linear-gradient(135deg, #ffe6a7, #ffbf5e);
+        color: #3c2500;
+      }
+
       @media (max-width: 640px) {
-        .shell {
+        [part~="shell"] {
           gap: 8px;
           padding: 10px;
         }
 
-        .status {
+        [part~="status-badge"] {
           display: none;
         }
 
-        button {
+        [part~="button"] {
           padding: 10px 12px;
           font-size: 12px;
         }
@@ -146,19 +239,19 @@ class ScreenRecorder extends HTMLElement {
     `;
 
     const dot = document.createElement("span");
-    dot.className = "dot";
-    this.handle.className = "handle";
-    this.statusBadge.className = "status";
-    this.recordButton.className = "record";
-    this.captureButton.className = "capture";
-    this.downloadButton.className = "download";
+    dot.setAttribute("part", "status-indicator");
+    this.handle.setAttribute("part", "handle");
+    this.statusBadge.setAttribute("part", "status-badge");
+    this.recordButton.setAttribute("part", "button record-button");
+    this.captureButton.setAttribute("part", "button capture-button");
+    this.downloadButton.setAttribute("part", "button download-button");
 
     this.recordButton.type = "button";
     this.captureButton.type = "button";
     this.downloadButton.type = "button";
 
     this.handle.append(dot, this.statusBadge);
-    this.container.className = "shell";
+    this.container.setAttribute("part", "shell");
     this.container.append(this.handle, this.recordButton, this.captureButton, this.downloadButton);
     this.shadow.append(style, this.container);
   }
@@ -569,42 +662,21 @@ class ScreenRecorder extends HTMLElement {
     }
 
     const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.zIndex = "10001";
-    overlay.style.background = "rgba(4, 8, 13, 0.82)";
-    overlay.style.display = "grid";
-    overlay.style.placeItems = "center";
+    overlay.setAttribute("part", "capture-overlay");
 
     const panel = document.createElement("div");
-    panel.style.width = "min(92vw, 1200px)";
-    panel.style.maxHeight = "92vh";
-    panel.style.padding = "18px";
-    panel.style.borderRadius = "24px";
-    panel.style.background = "#0c1621";
-    panel.style.boxShadow = "0 24px 60px rgba(0, 0, 0, 0.45)";
-    panel.style.border = "1px solid rgba(255, 255, 255, 0.08)";
-    panel.style.color = "#e7eef7";
-    panel.style.fontFamily = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    panel.setAttribute("part", "capture-panel");
 
     const heading = document.createElement("div");
     heading.textContent = "Select area to capture";
-    heading.style.fontSize = "16px";
-    heading.style.fontWeight = "700";
-    heading.style.marginBottom = "6px";
+    heading.setAttribute("part", "capture-heading");
 
     const hint = document.createElement("div");
     hint.textContent = "Drag over the preview, then save the cropped image.";
-    hint.style.fontSize = "13px";
-    hint.style.color = "#9cb2ca";
-    hint.style.marginBottom = "14px";
+    hint.setAttribute("part", "capture-hint");
 
     const previewWrap = document.createElement("div");
-    previewWrap.style.position = "relative";
-    previewWrap.style.overflow = "auto";
-    previewWrap.style.maxHeight = "calc(92vh - 150px)";
-    previewWrap.style.borderRadius = "16px";
-    previewWrap.style.background = "#08111a";
+    previewWrap.setAttribute("part", "capture-preview-wrap");
 
     const canvas = document.createElement("canvas");
     const maxWidth = Math.min(window.innerWidth * 0.88, 1100);
@@ -612,8 +684,7 @@ class ScreenRecorder extends HTMLElement {
     const scale = Math.min(maxWidth / frame.width, maxHeight / frame.height, 1);
     canvas.width = Math.max(1, Math.round(frame.width * scale));
     canvas.height = Math.max(1, Math.round(frame.height * scale));
-    canvas.style.display = "block";
-    canvas.style.cursor = "crosshair";
+    canvas.setAttribute("part", "capture-preview");
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -623,35 +694,28 @@ class ScreenRecorder extends HTMLElement {
     context.drawImage(frame, 0, 0, canvas.width, canvas.height);
 
     const selection = document.createElement("div");
-    selection.style.position = "absolute";
-    selection.style.border = "2px solid #7ed0ff";
-    selection.style.background = "rgba(126, 208, 255, 0.18)";
-    selection.style.pointerEvents = "none";
-    selection.style.display = "none";
+    selection.setAttribute("part", "capture-selection");
 
     previewWrap.append(canvas, selection);
 
     const actions = document.createElement("div");
-    actions.style.display = "flex";
-    actions.style.justifyContent = "flex-end";
-    actions.style.gap = "10px";
-    actions.style.marginTop = "14px";
+    actions.setAttribute("part", "capture-actions");
 
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.textContent = "Cancel";
-    this.styleActionButton(cancel, "#243445", "#eef4fb");
+    cancel.setAttribute("part", "capture-action-button capture-cancel-button");
 
     const save = document.createElement("button");
     save.type = "button";
     save.textContent = "Save capture";
     save.disabled = true;
-    this.styleActionButton(save, "linear-gradient(135deg, #ffe6a7, #ffbf5e)", "#3c2500");
+    save.setAttribute("part", "capture-action-button capture-save-button");
 
     actions.append(cancel, save);
     panel.append(heading, hint, previewWrap, actions);
     overlay.append(panel);
-    document.body.append(overlay);
+    this.shadow.append(overlay);
     this.selectionOverlay = overlay;
 
     const rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -663,8 +727,6 @@ class ScreenRecorder extends HTMLElement {
       if (rect.width < 2 || rect.height < 2) {
         selection.style.display = "none";
         save.disabled = true;
-        save.style.opacity = "0.45";
-        save.style.cursor = "not-allowed";
         return;
       }
       selection.style.display = "block";
@@ -673,8 +735,6 @@ class ScreenRecorder extends HTMLElement {
       selection.style.width = `${rect.width}px`;
       selection.style.height = `${rect.height}px`;
       save.disabled = false;
-      save.style.opacity = "1";
-      save.style.cursor = "pointer";
     };
 
     const getPoint = (event: PointerEvent) => {
@@ -788,20 +848,6 @@ class ScreenRecorder extends HTMLElement {
     canvas.addEventListener("pointerup", onPointerUp);
     cancel.addEventListener("click", onCancel);
     save.addEventListener("click", onSave);
-  }
-
-  private styleActionButton(button: HTMLButtonElement, background: string, color: string) {
-    button.style.appearance = "none";
-    button.style.border = "0";
-    button.style.borderRadius = "999px";
-    button.style.padding = "10px 14px";
-    button.style.font = "inherit";
-    button.style.fontSize = "13px";
-    button.style.fontWeight = "700";
-    button.style.background = background;
-    button.style.color = color;
-    button.style.cursor = "pointer";
-    button.style.opacity = button.disabled ? "0.45" : "1";
   }
 
   private teardownTracks(stream: MediaStream | null) {

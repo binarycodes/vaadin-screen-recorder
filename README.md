@@ -60,6 +60,30 @@ recorder.addErrorListener(event -> {
 - Capture downloads as `capture-session-yyyymmdd-hhmmss.png`
 - After download, the component shows `Downloaded` for 5 seconds and then returns to `Idle`
 
+## Styling Parts
+
+Style the Shadow DOM via `::part(...)` on `screen-recorder`:
+
+- `shell`
+- `handle`
+- `status-indicator`
+- `status-badge`
+- `button`
+- `record-button`
+- `capture-button`
+- `download-button`
+- `capture-overlay`
+- `capture-panel`
+- `capture-heading`
+- `capture-hint`
+- `capture-preview-wrap`
+- `capture-preview`
+- `capture-selection`
+- `capture-actions`
+- `capture-action-button`
+- `capture-cancel-button`
+- `capture-save-button`
+
 ## Browser Notes
 
 - Screen and tab capture always require user permission
