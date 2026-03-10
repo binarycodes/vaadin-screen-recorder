@@ -85,6 +85,24 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-crop-button`
 - `preview-arrow-button`
 - `capture-arrow-button`
+- `preview-arrow-color-picker`
+- `capture-arrow-color-picker`
+- `preview-text-button`
+- `capture-text-button`
+- `preview-text-color-picker`
+- `capture-text-color-picker`
+- `preview-color-picker`
+- `capture-color-picker`
+- `preview-color-trigger`
+- `capture-color-trigger`
+- `preview-color-swatch`
+- `capture-color-swatch`
+- `preview-color-menu`
+- `capture-color-menu`
+- `preview-color-option`
+- `capture-color-option`
+- `preview-text-size-select`
+- `capture-text-size-select`
 - `preview-undo-button`
 - `capture-undo-button`
 - `preview-heading`
@@ -104,6 +122,10 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-arrow`
 - `preview-arrow-head`
 - `capture-arrow-head`
+- `preview-text`
+- `capture-text`
+- `preview-text-editor`
+- `capture-text-editor`
 - `preview-actions`
 - `capture-actions`
 - `preview-action-button`
@@ -142,6 +164,32 @@ For common styling, set CSS custom properties globally (for example on `:root`) 
   --screen-recorder-indicator-error-color: #ffb54d;
   --screen-recorder-arrow-color: #ff5f57;
   --screen-recorder-arrow-width: 4px;
+  --screen-recorder-text-annotation-color: #ffffff;
+  --screen-recorder-text-annotation-size: 22px;
+  --screen-recorder-text-annotation-font-family: var(--screen-recorder-font-family);
+  --screen-recorder-text-annotation-weight: 500;
+  --screen-recorder-text-annotation-stroke-color: transparent;
+  --screen-recorder-text-annotation-stroke-width: 0px;
+  --screen-recorder-text-editor-dark-border: 1px dashed rgba(255, 255, 255, 0.75);
+  --screen-recorder-text-editor-dark-background: rgba(7, 14, 22, 0.78);
+  --screen-recorder-text-editor-light-border: 1px dashed rgba(7, 14, 22, 0.65);
+  --screen-recorder-text-editor-light-background: rgba(255, 255, 255, 0.9);
+  --screen-recorder-palette-1: #e53935;
+  --screen-recorder-palette-2: #fb8c00;
+  --screen-recorder-palette-3: #fdd835;
+  --screen-recorder-palette-4: #43a047;
+  --screen-recorder-palette-5: #00897b;
+  --screen-recorder-palette-6: #00acc1;
+  --screen-recorder-palette-7: #1e88e5;
+  --screen-recorder-palette-8: #3949ab;
+  --screen-recorder-palette-9: #8e24aa;
+  --screen-recorder-palette-10: #d81b60;
+  --screen-recorder-palette-11: #6d4c41;
+  --screen-recorder-palette-12: #757575;
+  --screen-recorder-palette-13: #212121;
+  --screen-recorder-palette-14: #ffffff;
+  --screen-recorder-palette-15: #90a4ae;
+  --screen-recorder-palette-16: #ffb300;
   --screen-recorder-recording-preview-background: #000;
   --screen-recorder-recording-preview-max-height: 62vh;
 }

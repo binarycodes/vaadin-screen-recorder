@@ -183,6 +183,80 @@ class ScreenRecorder extends HTMLElement {
         cursor: not-allowed;
       }
 
+      [part~="capture-text-size-select"] {
+        height: var(--screen-recorder-toolbar-button-size, 32px);
+        min-width: 78px;
+        border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
+        border-radius: var(--screen-recorder-toolbar-button-radius, 8px);
+        background: var(--screen-recorder-toolbar-button-background, #1a2b3d);
+        color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 0 8px;
+      }
+
+      [part~="capture-color-picker"] {
+        position: relative;
+        display: inline-flex;
+      }
+
+      [part~="capture-color-trigger"] {
+        height: var(--screen-recorder-toolbar-button-size, 32px);
+        min-width: 54px;
+        border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
+        border-radius: var(--screen-recorder-toolbar-button-radius, 8px);
+        background: var(--screen-recorder-toolbar-button-background, #1a2b3d);
+        color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 8px;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      [part~="capture-color-swatch"] {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+
+      [part~="capture-color-menu"] {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 18px);
+        gap: 6px;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: #132234;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        z-index: 3;
+      }
+
+      [part~="capture-color-menu"][hidden] {
+        display: none !important;
+      }
+
+      [part~="capture-color-option"] {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 0;
+        cursor: pointer;
+      }
+
+      [part~="capture-color-option"][data-selected="true"] {
+        outline: 2px solid #ffffff;
+        outline-offset: 1px;
+      }
+
       [part~="capture-toolbar-button"][aria-pressed="true"] {
         background: var(--screen-recorder-toolbar-button-active-background, #355a80);
         color: var(--screen-recorder-toolbar-button-active-color, #f4f9ff);
@@ -248,6 +322,35 @@ class ScreenRecorder extends HTMLElement {
 
       [part~="capture-arrow-head"] {
         fill: var(--screen-recorder-arrow-color, #ff5f57);
+      }
+
+      [part~="capture-text"] {
+        fill: var(--screen-recorder-text-annotation-color, #ffffff);
+        font-size: var(--screen-recorder-text-annotation-size, 22px);
+        font-family: var(--screen-recorder-text-annotation-font-family, var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)));
+        font-weight: var(--screen-recorder-text-annotation-weight, 500);
+        paint-order: stroke;
+        stroke: var(--screen-recorder-text-annotation-stroke-color, transparent);
+        stroke-width: var(--screen-recorder-text-annotation-stroke-width, 0px);
+        stroke-linejoin: round;
+      }
+
+      [part~="capture-text-editor"] {
+        position: absolute;
+        min-width: 140px;
+        min-height: 32px;
+        padding: 6px 8px;
+        border: var(--screen-recorder-text-editor-dark-border, 1px dashed rgba(255, 255, 255, 0.75));
+        border-radius: var(--screen-recorder-text-editor-radius, 6px);
+        background: var(--screen-recorder-text-editor-dark-background, rgba(7, 14, 22, 0.78));
+        color: var(--screen-recorder-text-annotation-color, #ffffff);
+        font-size: var(--screen-recorder-text-annotation-size, 22px);
+        font-family: var(--screen-recorder-text-annotation-font-family, var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)));
+        font-weight: var(--screen-recorder-text-annotation-weight, 500);
+        line-height: 1.2;
+        resize: both;
+        outline: none;
+        z-index: 2;
       }
 
       [part~="capture-actions"] {
@@ -736,6 +839,168 @@ class ScreenRecorder extends HTMLElement {
     arrowToggle.title = "Arrow";
     arrowToggle.setAttribute("aria-pressed", "false");
 
+    const textSizeSelect = document.createElement("select");
+    textSizeSelect.setAttribute("part", "preview-text-size-select capture-text-size-select");
+    textSizeSelect.setAttribute("aria-label", "Text size");
+    for (const size of [14, 18, 22, 28, 36]) {
+      const option = document.createElement("option");
+      option.value = `${size}`;
+      option.textContent = `${size}px`;
+      textSizeSelect.append(option);
+    }
+
+    const paletteDefaults = [
+      "#e53935", "#fb8c00", "#fdd835", "#43a047",
+      "#00897b", "#00acc1", "#1e88e5", "#3949ab",
+      "#8e24aa", "#d81b60", "#6d4c41", "#757575",
+      "#212121", "#ffffff", "#90a4ae", "#ffb300"
+    ];
+    const paletteColors = paletteDefaults.map((fallback, index) => this.cssVar(`--screen-recorder-palette-${index + 1}`, fallback));
+    const colorProbe = document.createElement("span");
+    colorProbe.style.display = "none";
+    overlay.append(colorProbe);
+
+    let activeArrowColor = this.cssVar("--screen-recorder-arrow-color", "#ff5f57");
+    let activeTextColor = this.cssVar("--screen-recorder-text-annotation-color", "#ffffff");
+
+    const resolveRgb = (colorValue: string): { r: number; g: number; b: number } | null => {
+      colorProbe.style.color = "";
+      colorProbe.style.color = colorValue;
+      const resolved = getComputedStyle(colorProbe).color;
+      const match = resolved.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if (!match) {
+        return null;
+      }
+      return {
+        r: Number.parseInt(match[1], 10),
+        g: Number.parseInt(match[2], 10),
+        b: Number.parseInt(match[3], 10)
+      };
+    };
+
+    const shouldUseLightEditorBackground = (colorValue: string): boolean => {
+      const rgb = resolveRgb(colorValue);
+      if (!rgb) {
+        return false;
+      }
+      const toLinear = (channel: number) => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      };
+      const luminance = (0.2126 * toLinear(rgb.r)) + (0.7152 * toLinear(rgb.g)) + (0.0722 * toLinear(rgb.b));
+      return luminance < 0.42;
+    };
+
+    const syncTextEditorContrast = () => {
+      if (!activeTextEditor) {
+        return;
+      }
+      const useLightBackground = shouldUseLightEditorBackground(activeTextColor);
+      activeTextEditor.style.color = activeTextColor;
+      activeTextEditor.style.background = useLightBackground
+        ? this.cssVar("--screen-recorder-text-editor-light-background", "rgba(255, 255, 255, 0.9)")
+        : this.cssVar("--screen-recorder-text-editor-dark-background", "rgba(7, 14, 22, 0.78)");
+      activeTextEditor.style.border = useLightBackground
+        ? this.cssVar("--screen-recorder-text-editor-light-border", "1px dashed rgba(7, 14, 22, 0.65)")
+        : this.cssVar("--screen-recorder-text-editor-dark-border", "1px dashed rgba(255, 255, 255, 0.75)");
+    };
+
+    const createColorPicker = (
+      label: string,
+      pickerParts: string,
+      getColor: () => string,
+      setColor: (value: string) => void
+    ) => {
+      const normalizeColor = (value: string): string => {
+        const probe = document.createElement("span");
+        probe.style.color = value;
+        return probe.style.color.replace(/\s+/g, "").toLowerCase();
+      };
+
+      const wrapper = document.createElement("div");
+      wrapper.setAttribute("part", `preview-color-picker capture-color-picker ${pickerParts}`);
+
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.setAttribute("part", "preview-color-trigger capture-color-trigger");
+      trigger.setAttribute("aria-label", `${label} color`);
+
+      const swatch = document.createElement("span");
+      swatch.setAttribute("part", "preview-color-swatch capture-color-swatch");
+      const caret = document.createElement("span");
+      caret.textContent = "▾";
+      trigger.append(swatch, caret);
+
+      const menu = document.createElement("div");
+      menu.setAttribute("part", "preview-color-menu capture-color-menu");
+      menu.hidden = true;
+
+      const options: HTMLButtonElement[] = [];
+      for (const color of paletteColors) {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.setAttribute("part", "preview-color-option capture-color-option");
+        option.dataset.color = normalizeColor(color);
+        option.style.background = color;
+        option.addEventListener("click", () => {
+          setColor(color);
+          sync();
+          menu.hidden = true;
+        });
+        options.push(option);
+        menu.append(option);
+      }
+
+      const sync = () => {
+        const current = normalizeColor(getColor());
+        swatch.style.background = getColor();
+        for (const option of options) {
+          option.dataset.selected = option.dataset.color === current ? "true" : "false";
+        }
+      };
+      sync();
+
+      wrapper.append(trigger, menu);
+      return { wrapper, menu, trigger, sync };
+    };
+
+    const arrowColorPicker = createColorPicker(
+      "Arrow",
+      "preview-arrow-color-picker capture-arrow-color-picker",
+      () => activeArrowColor,
+      (value) => {
+        activeArrowColor = value;
+      }
+    );
+
+    const textColorPicker = createColorPicker(
+      "Text",
+      "preview-text-color-picker capture-text-color-picker",
+      () => activeTextColor,
+      (value) => {
+        activeTextColor = value;
+        syncTextEditorContrast();
+      }
+    );
+
+    const closeColorMenus = () => {
+      arrowColorPicker.menu.hidden = true;
+      textColorPicker.menu.hidden = true;
+    };
+
+    const onColorTriggerClick = (menu: HTMLDivElement) => {
+      const shouldOpen = menu.hidden;
+      closeColorMenus();
+      if (shouldOpen) {
+        menu.hidden = false;
+      }
+    };
+
+    const onArrowColorTriggerClick = () => onColorTriggerClick(arrowColorPicker.menu);
+    const onTextColorTriggerClick = () => onColorTriggerClick(textColorPicker.menu);
+    arrowColorPicker.trigger.addEventListener("click", onArrowColorTriggerClick);
+    textColorPicker.trigger.addEventListener("click", onTextColorTriggerClick);
+
     const undoButton = document.createElement("button");
     undoButton.type = "button";
     undoButton.textContent = "↶";
@@ -743,14 +1008,30 @@ class ScreenRecorder extends HTMLElement {
     undoButton.setAttribute("aria-label", "Undo");
     undoButton.title = "Undo";
     undoButton.disabled = true;
-    toolbar.append(cropToggle, arrowToggle, undoButton);
+
+    const textToggle = document.createElement("button");
+    textToggle.type = "button";
+    textToggle.textContent = "T";
+    textToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-text-button capture-text-button");
+    textToggle.setAttribute("aria-label", "Text");
+    textToggle.title = "Text";
+    textToggle.setAttribute("aria-pressed", "false");
+    toolbar.append(
+      cropToggle,
+      arrowToggle,
+      arrowColorPicker.wrapper,
+      textToggle,
+      textColorPicker.wrapper,
+      textSizeSelect,
+      undoButton
+    );
 
     const heading = document.createElement("div");
     heading.textContent = "Capture preview";
     heading.setAttribute("part", "preview-heading capture-heading");
 
     const hint = document.createElement("div");
-    hint.textContent = "Use Crop to save a selected area, or Arrow to annotate before saving.";
+    hint.textContent = "Use Crop, Arrow, or Text. In Text mode, click to place or drag to size a text box.";
     hint.setAttribute("part", "preview-hint capture-hint");
 
     const previewWrap = document.createElement("div");
@@ -778,7 +1059,8 @@ class ScreenRecorder extends HTMLElement {
     annotations.setAttribute("part", "preview-annotations capture-annotations");
     annotations.setAttribute("aria-hidden", "true");
     const arrowsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    annotations.append(arrowsLayer);
+    const textsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    annotations.append(arrowsLayer, textsLayer);
 
     previewWrap.append(canvas, annotations, selection);
 
@@ -799,17 +1081,31 @@ class ScreenRecorder extends HTMLElement {
     panel.append(heading, toolbar, hint, previewWrap, actions);
     overlay.append(panel);
 
-    type Arrow = { x1: number; y1: number; x2: number; y2: number };
-    type EditAction = { type: "arrow" } | { type: "crop"; previousRect: { x: number; y: number; width: number; height: number } };
+    type Arrow = { x1: number; y1: number; x2: number; y2: number; color: string };
+    type TextAnnotation = { x: number; y: number; text: string; sizePx: number; color: string };
+    type EditAction = { type: "arrow" } | { type: "text" } | { type: "crop"; previousRect: { x: number; y: number; width: number; height: number } };
     const rect = { x: 0, y: 0, width: 0, height: 0 };
     const arrows: Arrow[] = [];
+    const texts: TextAnnotation[] = [];
     const history: EditAction[] = [];
+    let activeTextEditor: HTMLTextAreaElement | null = null;
+    let activeTextOrigin: { x: number; y: number } | null = null;
+    let textCommitInProgress = false;
+    let textPlacing = false;
+    let textStartX = 0;
+    let textStartY = 0;
     let draftArrow: Arrow | null = null;
-    let activeTool: "crop" | "arrow" | null = null;
+    let activeTool: "crop" | "arrow" | "text" | null = null;
     let dragging = false;
     let startX = 0;
     let startY = 0;
     let cropStartRect = { x: 0, y: 0, width: 0, height: 0 };
+    let activeTextSize = Number.parseFloat(this.cssVar("--screen-recorder-text-annotation-size", "22")) || 22;
+    textSizeSelect.value = `${Math.round(activeTextSize)}`;
+    if (!textSizeSelect.value) {
+      textSizeSelect.value = "22";
+      activeTextSize = 22;
+    }
 
     const hasValidCrop = () => rect.width >= 2 && rect.height >= 2;
     const hasVisibleArrow = (arrow: Arrow) => Math.hypot(arrow.x2 - arrow.x1, arrow.y2 - arrow.y1) >= 6;
@@ -839,12 +1135,32 @@ class ScreenRecorder extends HTMLElement {
         line.setAttribute("y1", `${arrow.y1}`);
         line.setAttribute("x2", `${arrow.x2}`);
         line.setAttribute("y2", `${arrow.y2}`);
+        line.style.stroke = arrow.color;
 
         const head = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         head.setAttribute("part", "preview-arrow-head capture-arrow-head");
         head.setAttribute("points", arrowHeadPoints(arrow));
+        head.style.fill = arrow.color;
 
         arrowsLayer.append(line, head);
+      }
+    };
+
+    const renderTexts = () => {
+      textsLayer.replaceChildren();
+      for (const annotation of texts) {
+        const lineHeight = annotation.sizePx * 1.2;
+        const lines = annotation.text.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i += 1) {
+          const textNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textNode.setAttribute("part", "preview-text capture-text");
+          textNode.setAttribute("x", `${annotation.x}`);
+          textNode.setAttribute("y", `${annotation.y + (i * lineHeight)}`);
+          textNode.setAttribute("dominant-baseline", "hanging");
+          textNode.setAttribute("style", `font-size:${annotation.sizePx}px;fill:${annotation.color}`);
+          textNode.textContent = lines[i] || " ";
+          textsLayer.append(textNode);
+        }
       }
     };
 
@@ -855,10 +1171,66 @@ class ScreenRecorder extends HTMLElement {
       undoButton.disabled = history.length === 0;
     };
 
-    const setTool = (tool: "crop" | "arrow" | null) => {
+    const removeTextEditor = () => {
+      if (activeTextEditor) {
+        activeTextEditor.remove();
+      }
+      activeTextEditor = null;
+      activeTextOrigin = null;
+    };
+
+    const commitTextEditor = () => {
+      if (!activeTextEditor || !activeTextOrigin || textCommitInProgress) {
+        return;
+      }
+      textCommitInProgress = true;
+      const text = activeTextEditor.value.trim();
+      const origin = activeTextOrigin;
+      if (text) {
+        texts.push({ x: origin.x, y: origin.y, text, sizePx: activeTextSize, color: activeTextColor });
+        history.push({ type: "text" });
+        updateUndoState();
+        renderTexts();
+      }
+      removeTextEditor();
+      textCommitInProgress = false;
+    };
+
+    const startTextEditor = (x: number, y: number, width = 160, height = 42) => {
+      commitTextEditor();
+      const editor = document.createElement("textarea");
+      editor.setAttribute("part", "preview-text-editor capture-text-editor");
+      editor.style.left = `${x}px`;
+      editor.style.top = `${y}px`;
+      editor.style.width = `${Math.max(140, width)}px`;
+      editor.style.height = `${Math.max(32, height)}px`;
+      editor.style.fontSize = `${activeTextSize}px`;
+      editor.placeholder = "Type text";
+      previewWrap.append(editor);
+      activeTextEditor = editor;
+      activeTextOrigin = { x, y };
+      syncTextEditorContrast();
+
+      editor.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          commitTextEditor();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          removeTextEditor();
+        }
+      });
+      editor.addEventListener("blur", () => {
+        commitTextEditor();
+      });
+    };
+
+    const setTool = (tool: "crop" | "arrow" | "text" | null) => {
       activeTool = tool;
       cropToggle.setAttribute("aria-pressed", tool === "crop" ? "true" : "false");
       arrowToggle.setAttribute("aria-pressed", tool === "arrow" ? "true" : "false");
+      textToggle.setAttribute("aria-pressed", tool === "text" ? "true" : "false");
+      canvas.style.cursor = tool === "text" ? "text" : "crosshair";
       if (tool !== "crop") {
         rect.x = 0;
         rect.y = 0;
@@ -867,6 +1239,9 @@ class ScreenRecorder extends HTMLElement {
       }
       if (tool !== "arrow") {
         draftArrow = null;
+      }
+      if (tool !== "text") {
+        commitTextEditor();
       }
       redrawSelection();
       renderArrows();
@@ -896,9 +1271,9 @@ class ScreenRecorder extends HTMLElement {
       if (!activeTool) {
         return;
       }
-      dragging = true;
       const point = getPoint(event);
       if (activeTool === "crop") {
+        dragging = true;
         cropStartRect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
         startX = point.x;
         startY = point.y;
@@ -907,11 +1282,20 @@ class ScreenRecorder extends HTMLElement {
         rect.width = 0;
         rect.height = 0;
         redrawSelection();
-      } else {
-        draftArrow = { x1: point.x, y1: point.y, x2: point.x, y2: point.y };
+        canvas.setPointerCapture(event.pointerId);
+      } else if (activeTool === "arrow") {
+        dragging = true;
+        draftArrow = { x1: point.x, y1: point.y, x2: point.x, y2: point.y, color: activeArrowColor };
         renderArrows();
+        canvas.setPointerCapture(event.pointerId);
+      } else {
+        dragging = true;
+        textPlacing = true;
+        textStartX = point.x;
+        textStartY = point.y;
+        startTextEditor(point.x, point.y, 160, 42);
+        canvas.setPointerCapture(event.pointerId);
       }
-      canvas.setPointerCapture(event.pointerId);
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -925,10 +1309,20 @@ class ScreenRecorder extends HTMLElement {
         rect.width = Math.abs(point.x - startX);
         rect.height = Math.abs(point.y - startY);
         redrawSelection();
-      } else if (draftArrow) {
+      } else if (activeTool === "arrow" && draftArrow) {
         draftArrow.x2 = point.x;
         draftArrow.y2 = point.y;
         renderArrows();
+      } else if (activeTool === "text" && textPlacing && activeTextEditor) {
+        const nextLeft = Math.min(textStartX, point.x);
+        const nextTop = Math.min(textStartY, point.y);
+        const nextWidth = Math.max(140, Math.abs(point.x - textStartX));
+        const nextHeight = Math.max(32, Math.abs(point.y - textStartY));
+        activeTextEditor.style.left = `${nextLeft}px`;
+        activeTextEditor.style.top = `${nextTop}px`;
+        activeTextEditor.style.width = `${nextWidth}px`;
+        activeTextEditor.style.height = `${nextHeight}px`;
+        activeTextOrigin = { x: nextLeft, y: nextTop };
       }
     };
 
@@ -945,6 +1339,9 @@ class ScreenRecorder extends HTMLElement {
         }
         draftArrow = null;
         renderArrows();
+      } else if (activeTool === "text" && textPlacing) {
+        textPlacing = false;
+        activeTextEditor?.focus();
       } else if (activeTool === "crop") {
         if (!rectEquals(rect, cropStartRect)) {
           history.push({ type: "crop", previousRect: cropStartRect });
@@ -964,6 +1361,10 @@ class ScreenRecorder extends HTMLElement {
       setTool(activeTool === "arrow" ? null : "arrow");
     };
 
+    const onTextToggle = () => {
+      setTool(activeTool === "text" ? null : "text");
+    };
+
     const onUndo = () => {
       const action = history.pop();
       if (!action) {
@@ -974,6 +1375,9 @@ class ScreenRecorder extends HTMLElement {
       if (action.type === "arrow") {
         arrows.pop();
         renderArrows();
+      } else if (action.type === "text") {
+        texts.pop();
+        renderTexts();
       } else {
         rect.x = action.previousRect.x;
         rect.y = action.previousRect.y;
@@ -985,6 +1389,28 @@ class ScreenRecorder extends HTMLElement {
       updateUndoState();
     };
 
+    const onTextSizeChange = () => {
+      const selected = Number.parseFloat(textSizeSelect.value);
+      if (!Number.isFinite(selected) || selected <= 0) {
+        return;
+      }
+      activeTextSize = selected;
+      if (activeTextEditor) {
+        activeTextEditor.style.fontSize = `${activeTextSize}px`;
+      }
+    };
+
+    const onOverlayPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        closeColorMenus();
+        return;
+      }
+      if (!arrowColorPicker.wrapper.contains(target) && !textColorPicker.wrapper.contains(target)) {
+        closeColorMenus();
+      }
+    };
+
     const closeOverlay = () => {
       this.closePreviewOverlay();
     };
@@ -994,6 +1420,7 @@ class ScreenRecorder extends HTMLElement {
     };
 
     const onSave = async () => {
+      commitTextEditor();
       const output = document.createElement("canvas");
       const previewBounds = canvas.getBoundingClientRect();
       const ratioX = frame.width / previewBounds.width;
@@ -1024,7 +1451,6 @@ class ScreenRecorder extends HTMLElement {
         output.height
       );
 
-      const arrowColor = this.cssVar("--screen-recorder-arrow-color", "#ff5f57");
       const arrowWidth = Number.parseFloat(this.cssVar("--screen-recorder-arrow-width", "4")) || 4;
       for (const arrow of arrows) {
         const ax1 = Math.round(arrow.x1 * ratioX) - sourceX;
@@ -1041,14 +1467,14 @@ class ScreenRecorder extends HTMLElement {
         const rightY = ay2 - headLength * Math.sin(angle) + headWidth * Math.cos(angle);
 
         outputContext.save();
-        outputContext.strokeStyle = arrowColor;
+        outputContext.strokeStyle = arrow.color;
         outputContext.lineWidth = lineWidth;
         outputContext.lineCap = "round";
         outputContext.beginPath();
         outputContext.moveTo(ax1, ay1);
         outputContext.lineTo(ax2, ay2);
         outputContext.stroke();
-        outputContext.fillStyle = arrowColor;
+        outputContext.fillStyle = arrow.color;
         outputContext.beginPath();
         outputContext.moveTo(ax2, ay2);
         outputContext.lineTo(leftX, leftY);
@@ -1056,6 +1482,34 @@ class ScreenRecorder extends HTMLElement {
         outputContext.closePath();
         outputContext.fill();
         outputContext.restore();
+      }
+
+      const textWeight = this.cssVar("--screen-recorder-text-annotation-weight", "700");
+      const textFontFamily = this.cssVar("--screen-recorder-text-annotation-font-family", this.cssVar("--screen-recorder-font-family", "sans-serif"));
+      const textStrokeColor = this.cssVar("--screen-recorder-text-annotation-stroke-color", "transparent");
+      const parsedTextStrokeWidth = Number.parseFloat(this.cssVar("--screen-recorder-text-annotation-stroke-width", "0"));
+      const textStrokeWidth = Number.isFinite(parsedTextStrokeWidth) ? parsedTextStrokeWidth : 0;
+      const textLineHeight = 1.2;
+      for (const annotation of texts) {
+        const lines = annotation.text.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i += 1) {
+          const tx = Math.round(annotation.x * ratioX) - sourceX;
+          const scaledSize = Math.max(10, Math.round(annotation.sizePx * ((ratioX + ratioY) / 2)));
+          const ty = Math.round(annotation.y * ratioY) - sourceY + (i * scaledSize * textLineHeight);
+          outputContext.save();
+          outputContext.font = `${textWeight} ${scaledSize}px ${textFontFamily}`;
+          outputContext.textBaseline = "top";
+          outputContext.lineJoin = "round";
+          outputContext.fillStyle = annotation.color;
+          const scaledStrokeWidth = Math.max(0, textStrokeWidth * ((ratioX + ratioY) / 2));
+          if (scaledStrokeWidth > 0) {
+            outputContext.strokeStyle = textStrokeColor;
+            outputContext.lineWidth = scaledStrokeWidth;
+            outputContext.strokeText(lines[i] || " ", tx, ty);
+          }
+          outputContext.fillText(lines[i] || " ", tx, ty);
+          outputContext.restore();
+        }
       }
 
       const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, "image/png"));
@@ -1085,9 +1539,12 @@ class ScreenRecorder extends HTMLElement {
     canvas.addEventListener("pointerup", onPointerUp);
     cropToggle.addEventListener("click", onCropToggle);
     arrowToggle.addEventListener("click", onArrowToggle);
+    textToggle.addEventListener("click", onTextToggle);
+    textSizeSelect.addEventListener("change", onTextSizeChange);
     undoButton.addEventListener("click", onUndo);
     cancel.addEventListener("click", onCancel);
     save.addEventListener("click", onSave);
+    overlay.addEventListener("pointerdown", onOverlayPointerDown);
 
     this.setPreviewOverlay(overlay, () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
@@ -1095,9 +1552,15 @@ class ScreenRecorder extends HTMLElement {
       canvas.removeEventListener("pointerup", onPointerUp);
       cropToggle.removeEventListener("click", onCropToggle);
       arrowToggle.removeEventListener("click", onArrowToggle);
+      textToggle.removeEventListener("click", onTextToggle);
+      textSizeSelect.removeEventListener("change", onTextSizeChange);
+      arrowColorPicker.trigger.removeEventListener("click", onArrowColorTriggerClick);
+      textColorPicker.trigger.removeEventListener("click", onTextColorTriggerClick);
       undoButton.removeEventListener("click", onUndo);
       cancel.removeEventListener("click", onCancel);
       save.removeEventListener("click", onSave);
+      overlay.removeEventListener("pointerdown", onOverlayPointerDown);
+      removeTextEditor();
       frame.close();
     });
   }
