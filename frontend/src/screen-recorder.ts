@@ -7,7 +7,6 @@ class ScreenRecorder extends HTMLElement {
   private readonly statusBadge = document.createElement("span");
   private readonly recordButton = document.createElement("button");
   private readonly captureButton = document.createElement("button");
-  private readonly downloadButton = document.createElement("button");
 
   private status: RecorderStatus = "idle";
   private stream: MediaStream | null = null;
@@ -22,7 +21,8 @@ class ScreenRecorder extends HTMLElement {
   private dragOffsetY = 0;
   private positionSet = false;
 
-  private selectionOverlay: HTMLDivElement | null = null;
+  private previewOverlay: HTMLDivElement | null = null;
+  private previewOverlayCleanup: (() => void) | null = null;
 
   declare recordEnabled: boolean;
   declare captureEnabled: boolean;
@@ -39,6 +39,11 @@ class ScreenRecorder extends HTMLElement {
         font-family: var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
         font-size: var(--screen-recorder-font-size, 14px);
         color: var(--screen-recorder-text-color, #f4f7fb);
+      }
+
+      :host([overlay-open]) [part~="shell"] {
+        visibility: hidden;
+        pointer-events: none;
       }
 
       [part~="shell"] {
@@ -124,11 +129,6 @@ class ScreenRecorder extends HTMLElement {
         color: var(--screen-recorder-capture-color, #3c2500);
       }
 
-      [part~="download-button"] {
-        background: var(--screen-recorder-download-background, linear-gradient(135deg, #d7e8ff, #a8c9ff));
-        color: var(--screen-recorder-download-color, #10223a);
-      }
-
       [part~="capture-overlay"] {
         position: fixed;
         inset: 0;
@@ -150,6 +150,39 @@ class ScreenRecorder extends HTMLElement {
         font-family: var(--screen-recorder-font-family, var(--lumo-font-family, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
       }
 
+      [part~="capture-toolbar"] {
+        display: flex;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: var(--screen-recorder-toolbar-padding, 6px 0 10px 0);
+        margin-bottom: 8px;
+        border-bottom: var(--screen-recorder-toolbar-border-bottom, 1px solid rgba(255, 255, 255, 0.08));
+      }
+
+      [part~="capture-toolbar-button"] {
+        appearance: none;
+        border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
+        border-radius: var(--screen-recorder-toolbar-button-radius, 8px);
+        width: var(--screen-recorder-toolbar-button-size, 32px);
+        height: var(--screen-recorder-toolbar-button-size, 32px);
+        padding: 0;
+        font: inherit;
+        font-size: var(--screen-recorder-toolbar-button-font-size, 16px);
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        cursor: pointer;
+        background: var(--screen-recorder-toolbar-button-background, #1a2b3d);
+        color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
+      }
+
+      [part~="capture-crop-button"][aria-pressed="true"] {
+        background: var(--screen-recorder-toolbar-button-active-background, #355a80);
+        color: var(--screen-recorder-toolbar-button-active-color, #f4f9ff);
+      }
+
       [part~="capture-heading"] {
         font-size: var(--screen-recorder-heading-font-size, 16px);
         font-weight: 700;
@@ -166,13 +199,23 @@ class ScreenRecorder extends HTMLElement {
         position: relative;
         overflow: auto;
         max-height: calc(92vh - 150px);
-        border-radius: var(--screen-recorder-preview-radius, 16px);
+        border-radius: var(--screen-recorder-preview-radius, 0px);
         background: var(--screen-recorder-preview-background, #08111a);
       }
 
       [part~="capture-preview"] {
         display: block;
+        width: 100%;
+        height: auto;
         cursor: crosshair;
+      }
+
+      [part~="recording-preview"] {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: var(--screen-recorder-recording-preview-max-height, 62vh);
+        background: var(--screen-recorder-recording-preview-background, #000);
       }
 
       [part~="capture-selection"] {
@@ -245,23 +288,21 @@ class ScreenRecorder extends HTMLElement {
     this.statusBadge.setAttribute("part", "status-badge");
     this.recordButton.setAttribute("part", "button record-button");
     this.captureButton.setAttribute("part", "button capture-button");
-    this.downloadButton.setAttribute("part", "button download-button");
 
     this.recordButton.type = "button";
     this.captureButton.type = "button";
-    this.downloadButton.type = "button";
 
     this.handle.append(dot, this.statusBadge);
     this.container.setAttribute("part", "shell");
-    this.container.append(this.handle, this.recordButton, this.captureButton, this.downloadButton);
+    this.container.append(this.handle, this.recordButton, this.captureButton);
     this.shadow.append(style, this.container);
   }
 
   connectedCallback() {
+    this.setControlsVisible(true);
     this.container.addEventListener("pointerdown", this.onShellPointerDown);
     this.recordButton.addEventListener("click", this.onRecordToggle);
     this.captureButton.addEventListener("click", this.onCaptureClick);
-    this.downloadButton.addEventListener("click", this.onDownloadClick);
     this.updateUi();
   }
 
@@ -279,9 +320,7 @@ class ScreenRecorder extends HTMLElement {
     window.removeEventListener("pointerup", this.onDragEnd);
     this.recordButton.removeEventListener("click", this.onRecordToggle);
     this.captureButton.removeEventListener("click", this.onCaptureClick);
-    this.downloadButton.removeEventListener("click", this.onDownloadClick);
-    this.selectionOverlay?.remove();
-    this.selectionOverlay = null;
+    this.closePreviewOverlay();
     this.clearIdleReset();
     this.recorder = null;
     this.chunks = [];
@@ -335,6 +374,9 @@ class ScreenRecorder extends HTMLElement {
         this.chunks = [];
         this.recorder = null;
         this.setStatus("ready");
+        if (this.recordingBlob && this.lastCompletedAt) {
+          void this.openRecordingOverlay(this.recordingBlob, this.lastCompletedAt);
+        }
       };
 
       const [videoTrack] = this.stream.getVideoTracks();
@@ -377,17 +419,7 @@ class ScreenRecorder extends HTMLElement {
       return;
     }
 
-    const url = URL.createObjectURL(this.recordingBlob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = this.buildFilename(this.lastCompletedAt);
-    anchor.style.display = "none";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-    this.setStatus("downloaded");
-    this.scheduleIdleReset();
+    void this.openRecordingOverlay(this.recordingBlob, this.lastCompletedAt);
   }
 
   async captureSelection() {
@@ -420,7 +452,7 @@ class ScreenRecorder extends HTMLElement {
 
       const frame = await this.grabFrame(captureStream);
       this.teardownTracks(captureStream);
-      await this.openCropOverlay(frame);
+      await this.openCaptureOverlay(frame);
     } catch (error) {
       this.teardownTracks(captureStream);
       if (error instanceof DOMException && error.name === "NotAllowedError") {
@@ -437,10 +469,6 @@ class ScreenRecorder extends HTMLElement {
     } else {
       void this.start();
     }
-  };
-
-  private readonly onDownloadClick = () => {
-    this.download();
   };
 
   private readonly onCaptureClick = () => {
@@ -508,11 +536,8 @@ class ScreenRecorder extends HTMLElement {
     this.captureButton.textContent = "Capture";
     this.recordButton.hidden = !this.isRecordEnabled;
     this.captureButton.hidden = !this.isCaptureEnabled;
-    this.downloadButton.hidden = !this.isRecordEnabled;
     this.recordButton.disabled = !this.isRecordEnabled;
     this.captureButton.disabled = !this.isCaptureEnabled || this.status === "recording";
-    this.downloadButton.textContent = "Download";
-    this.downloadButton.disabled = !this.isRecordEnabled || !this.recordingBlob || !this.lastCompletedAt || this.status === "recording";
 
     const indicatorColor = this.status === "recording"
       ? this.cssVar("--screen-recorder-indicator-recording-color", "#ff5f57")
@@ -661,36 +686,43 @@ class ScreenRecorder extends HTMLElement {
     }
   }
 
-  private async openCropOverlay(frame: ImageBitmap): Promise<void> {
-    if (this.selectionOverlay) {
-      this.selectionOverlay.remove();
-      this.selectionOverlay = null;
-    }
-
+  private async openCaptureOverlay(frame: ImageBitmap): Promise<void> {
     const overlay = document.createElement("div");
-    overlay.setAttribute("part", "capture-overlay");
+    overlay.setAttribute("part", "preview-overlay capture-overlay");
 
     const panel = document.createElement("div");
-    panel.setAttribute("part", "capture-panel");
+    panel.setAttribute("part", "preview-panel capture-panel");
+
+    const toolbar = document.createElement("div");
+    toolbar.setAttribute("part", "preview-toolbar capture-toolbar");
+
+    const cropToggle = document.createElement("button");
+    cropToggle.type = "button";
+    cropToggle.textContent = "✂";
+    cropToggle.setAttribute("part", "preview-toolbar-button capture-toolbar-button preview-crop-button capture-crop-button");
+    cropToggle.setAttribute("aria-label", "Crop");
+    cropToggle.title = "Crop";
+    cropToggle.setAttribute("aria-pressed", "false");
+    toolbar.append(cropToggle);
 
     const heading = document.createElement("div");
-    heading.textContent = "Select area to capture";
-    heading.setAttribute("part", "capture-heading");
+    heading.textContent = "Capture preview";
+    heading.setAttribute("part", "preview-heading capture-heading");
 
     const hint = document.createElement("div");
-    hint.textContent = "Drag over the preview, then save the cropped image.";
-    hint.setAttribute("part", "capture-hint");
+    hint.textContent = "Save the full image, or enable Crop and drag over the preview.";
+    hint.setAttribute("part", "preview-hint capture-hint");
 
     const previewWrap = document.createElement("div");
-    previewWrap.setAttribute("part", "capture-preview-wrap");
+    previewWrap.setAttribute("part", "preview-content-wrap capture-preview-wrap");
 
     const canvas = document.createElement("canvas");
-    const maxWidth = Math.min(window.innerWidth * 0.88, 1100);
+    const maxWidth = Math.min(window.innerWidth * 0.9, 1160);
     const maxHeight = Math.min(window.innerHeight * 0.64, 720);
     const scale = Math.min(maxWidth / frame.width, maxHeight / frame.height, 1);
     canvas.width = Math.max(1, Math.round(frame.width * scale));
     canvas.height = Math.max(1, Math.round(frame.height * scale));
-    canvas.setAttribute("part", "capture-preview");
+    canvas.setAttribute("part", "preview-media capture-preview");
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -700,39 +732,49 @@ class ScreenRecorder extends HTMLElement {
     context.drawImage(frame, 0, 0, canvas.width, canvas.height);
 
     const selection = document.createElement("div");
-    selection.setAttribute("part", "capture-selection");
+    selection.setAttribute("part", "preview-selection capture-selection");
 
     previewWrap.append(canvas, selection);
 
     const actions = document.createElement("div");
-    actions.setAttribute("part", "capture-actions");
+    actions.setAttribute("part", "preview-actions capture-actions");
 
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.textContent = "Cancel";
-    cancel.setAttribute("part", "capture-action-button capture-cancel-button");
+    cancel.setAttribute("part", "preview-action-button capture-action-button preview-cancel-button capture-cancel-button");
 
     const save = document.createElement("button");
     save.type = "button";
     save.textContent = "Save capture";
-    save.disabled = true;
-    save.setAttribute("part", "capture-action-button capture-save-button");
+    save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
 
     actions.append(cancel, save);
-    panel.append(heading, hint, previewWrap, actions);
+    panel.append(heading, toolbar, hint, previewWrap, actions);
     overlay.append(panel);
-    this.shadow.append(overlay);
-    this.selectionOverlay = overlay;
 
     const rect = { x: 0, y: 0, width: 0, height: 0 };
+    let cropMode = false;
     let dragging = false;
     let startX = 0;
     let startY = 0;
 
+    const hasValidCrop = () => rect.width >= 2 && rect.height >= 2;
+    const setCropMode = (enabled: boolean) => {
+      cropMode = enabled;
+      cropToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
+      if (!enabled) {
+        rect.x = 0;
+        rect.y = 0;
+        rect.width = 0;
+        rect.height = 0;
+      }
+      redrawSelection();
+    };
+
     const redrawSelection = () => {
-      if (rect.width < 2 || rect.height < 2) {
+      if (!cropMode || !hasValidCrop()) {
         selection.style.display = "none";
-        save.disabled = true;
         return;
       }
       selection.style.display = "block";
@@ -740,7 +782,6 @@ class ScreenRecorder extends HTMLElement {
       selection.style.top = `${rect.y}px`;
       selection.style.width = `${rect.width}px`;
       selection.style.height = `${rect.height}px`;
-      save.disabled = false;
     };
 
     const getPoint = (event: PointerEvent) => {
@@ -752,6 +793,9 @@ class ScreenRecorder extends HTMLElement {
     };
 
     const onPointerDown = (event: PointerEvent) => {
+      if (!cropMode) {
+        return;
+      }
       dragging = true;
       const point = getPoint(event);
       startX = point.x;
@@ -765,7 +809,7 @@ class ScreenRecorder extends HTMLElement {
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!dragging) {
+      if (!cropMode || !dragging) {
         return;
       }
       const point = getPoint(event);
@@ -777,21 +821,21 @@ class ScreenRecorder extends HTMLElement {
     };
 
     const onPointerUp = (event: PointerEvent) => {
+      if (!cropMode) {
+        return;
+      }
       dragging = false;
       if (canvas.hasPointerCapture(event.pointerId)) {
         canvas.releasePointerCapture(event.pointerId);
       }
     };
 
+    const onCropToggle = () => {
+      setCropMode(!cropMode);
+    };
+
     const closeOverlay = () => {
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerup", onPointerUp);
-      cancel.removeEventListener("click", onCancel);
-      save.removeEventListener("click", onSave);
-      overlay.remove();
-      this.selectionOverlay = null;
-      frame.close();
+      this.closePreviewOverlay();
     };
 
     const onCancel = () => {
@@ -799,15 +843,17 @@ class ScreenRecorder extends HTMLElement {
     };
 
     const onSave = async () => {
-      if (rect.width < 2 || rect.height < 2) {
-        return;
-      }
-
       const output = document.createElement("canvas");
-      const ratioX = frame.width / canvas.width;
-      const ratioY = frame.height / canvas.height;
-      output.width = Math.max(1, Math.round(rect.width * ratioX));
-      output.height = Math.max(1, Math.round(rect.height * ratioY));
+      const previewBounds = canvas.getBoundingClientRect();
+      const ratioX = frame.width / previewBounds.width;
+      const ratioY = frame.height / previewBounds.height;
+      const useCrop = cropMode && hasValidCrop();
+      const sourceX = useCrop ? Math.round(rect.x * ratioX) : 0;
+      const sourceY = useCrop ? Math.round(rect.y * ratioY) : 0;
+      const sourceWidth = useCrop ? Math.max(1, Math.round(rect.width * ratioX)) : frame.width;
+      const sourceHeight = useCrop ? Math.max(1, Math.round(rect.height * ratioY)) : frame.height;
+      output.width = sourceWidth;
+      output.height = sourceHeight;
       const outputContext = output.getContext("2d");
       if (!outputContext) {
         this.setStatus("error");
@@ -817,10 +863,10 @@ class ScreenRecorder extends HTMLElement {
 
       outputContext.drawImage(
         frame,
-        Math.round(rect.x * ratioX),
-        Math.round(rect.y * ratioY),
-        Math.round(rect.width * ratioX),
-        Math.round(rect.height * ratioY),
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
         0,
         0,
         output.width,
@@ -852,8 +898,148 @@ class ScreenRecorder extends HTMLElement {
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
+    cropToggle.addEventListener("click", onCropToggle);
     cancel.addEventListener("click", onCancel);
     save.addEventListener("click", onSave);
+
+    this.setPreviewOverlay(overlay, () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      cropToggle.removeEventListener("click", onCropToggle);
+      cancel.removeEventListener("click", onCancel);
+      save.removeEventListener("click", onSave);
+      frame.close();
+    });
+  }
+
+  private async openRecordingOverlay(blob: Blob, completedAt: Date): Promise<void> {
+    const overlay = document.createElement("div");
+    overlay.setAttribute("part", "preview-overlay capture-overlay");
+
+    const panel = document.createElement("div");
+    panel.setAttribute("part", "preview-panel capture-panel");
+
+    const heading = document.createElement("div");
+    heading.textContent = "Recording preview";
+    heading.setAttribute("part", "preview-heading capture-heading");
+
+    const hint = document.createElement("div");
+    hint.textContent = "Review the recording, then save it.";
+    hint.setAttribute("part", "preview-hint capture-hint");
+
+    const previewWrap = document.createElement("div");
+    previewWrap.setAttribute("part", "preview-content-wrap capture-preview-wrap");
+
+    const video = document.createElement("video");
+    video.controls = true;
+    video.setAttribute("part", "preview-media recording-preview");
+    const url = URL.createObjectURL(blob);
+    video.src = url;
+    video.preload = "metadata";
+
+    previewWrap.append(video);
+
+    const actions = document.createElement("div");
+    actions.setAttribute("part", "preview-actions capture-actions");
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.setAttribute("part", "preview-action-button capture-action-button preview-cancel-button capture-cancel-button");
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save recording";
+    save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
+
+    actions.append(cancel, save);
+    panel.append(heading, hint, previewWrap, actions);
+    overlay.append(panel);
+
+    const closeOverlay = () => {
+      this.closePreviewOverlay();
+    };
+
+    const onCancel = () => {
+      closeOverlay();
+    };
+
+    const onSave = () => {
+      this.downloadBlob(blob, this.buildFilename(completedAt));
+      this.setStatus("downloaded");
+      this.scheduleIdleReset();
+      closeOverlay();
+    };
+
+    cancel.addEventListener("click", onCancel);
+    save.addEventListener("click", onSave);
+
+    this.setPreviewOverlay(overlay, () => {
+      cancel.removeEventListener("click", onCancel);
+      save.removeEventListener("click", onSave);
+      video.pause();
+      video.src = "";
+      URL.revokeObjectURL(url);
+    });
+
+    try {
+      await video.play();
+    } catch {
+      // User gesture policy may block autoplay. Controls remain available.
+    }
+  }
+
+  private setControlsVisible(visible: boolean) {
+    this.toggleAttribute("overlay-open", !visible);
+    this.container.setAttribute("aria-hidden", visible ? "false" : "true");
+  }
+
+  private setPreviewOverlay(overlay: HTMLDivElement, cleanup: () => void) {
+    this.closePreviewOverlay();
+    this.setControlsVisible(false);
+    this.shadow.append(overlay);
+    this.previewOverlay = overlay;
+
+    let cleaned = false;
+    this.previewOverlayCleanup = () => {
+      if (cleaned) {
+        return;
+      }
+      cleaned = true;
+      cleanup();
+      overlay.remove();
+      if (this.previewOverlay === overlay) {
+        this.previewOverlay = null;
+      }
+      this.previewOverlayCleanup = null;
+      this.setControlsVisible(true);
+    };
+  }
+
+  private closePreviewOverlay() {
+    if (this.previewOverlayCleanup) {
+      this.previewOverlayCleanup();
+      return;
+    }
+
+    if (this.previewOverlay) {
+      this.previewOverlay.remove();
+      this.previewOverlay = null;
+    }
+    this.setControlsVisible(true);
+  }
+
+  private downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.style.display = "none";
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 
   private teardownTracks(stream: MediaStream | null) {

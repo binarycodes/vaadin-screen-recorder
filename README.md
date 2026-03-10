@@ -56,6 +56,8 @@ recorder.addErrorListener(event -> {
 ## Behavior
 
 - The component renders as a floating draggable control bar
+- Stopping a recording opens a preview dialog with playback and a `Save recording` action
+- Capturing opens a preview dialog with optional crop mode and a `Save capture` action
 - Recording downloads as `recording-session-yyyymmdd-hhmmss.webm`
 - Capture downloads as `capture-session-yyyymmdd-hhmmss.png`
 - After download, the component shows `Downloaded` for 5 seconds and then returns to `Idle`
@@ -71,18 +73,37 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `button`
 - `record-button`
 - `capture-button`
-- `download-button`
+- `preview-overlay`
 - `capture-overlay`
+- `preview-panel`
 - `capture-panel`
+- `preview-toolbar`
+- `capture-toolbar`
+- `preview-toolbar-button`
+- `capture-toolbar-button`
+- `preview-crop-button`
+- `capture-crop-button`
+- `preview-heading`
 - `capture-heading`
+- `preview-hint`
 - `capture-hint`
+- `preview-content-wrap`
 - `capture-preview-wrap`
+- `preview-media`
 - `capture-preview`
+- `recording-preview`
+- `preview-selection`
 - `capture-selection`
+- `preview-actions`
 - `capture-actions`
+- `preview-action-button`
 - `capture-action-button`
+- `preview-cancel-button`
 - `capture-cancel-button`
+- `preview-save-button`
 - `capture-save-button`
+
+`preview-*` parts are the neutral naming scheme used for both capture and recording dialogs. Existing `capture-*` parts are kept as aliases for compatibility.
 
 ## Global Theme Properties
 
@@ -104,12 +125,13 @@ For common styling, set CSS custom properties globally (for example on `:root`) 
   --screen-recorder-button-padding: 10px 14px;
   --screen-recorder-record-background: #d33b3b;
   --screen-recorder-capture-background: #f7c45b;
-  --screen-recorder-download-background: #8cb8ff;
 
   --screen-recorder-indicator-idle-color: #8ea4bc;
   --screen-recorder-indicator-recording-color: #ff5f57;
   --screen-recorder-indicator-ready-color: #63d18c;
   --screen-recorder-indicator-error-color: #ffb54d;
+  --screen-recorder-recording-preview-background: #000;
+  --screen-recorder-recording-preview-max-height: 62vh;
 }
 ```
 
@@ -117,7 +139,11 @@ Most useful property groups:
 
 - Typography: `--screen-recorder-font-family`, `--screen-recorder-font-size`, `--screen-recorder-button-font-size`, `--screen-recorder-status-font-size`
 - Spacing/sizing: `--screen-recorder-shell-padding`, `--screen-recorder-shell-gap`, `--screen-recorder-button-padding`, `--screen-recorder-panel-padding`
-- Colors: `--screen-recorder-shell-background`, `--screen-recorder-text-color`, `--screen-recorder-muted-text-color`, `--screen-recorder-record-background`, `--screen-recorder-capture-background`, `--screen-recorder-download-background`
+- Colors: `--screen-recorder-shell-background`, `--screen-recorder-text-color`, `--screen-recorder-muted-text-color`, `--screen-recorder-record-background`, `--screen-recorder-capture-background`
+
+## API Note
+
+- `download()` now follows the same preview-first pattern as the UI: it opens the recording preview dialog instead of directly downloading.
 
 ## Browser Notes
 
