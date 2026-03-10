@@ -158,6 +158,8 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `capture-cancel-button`
 - `preview-save-button`
 - `capture-save-button`
+- `preview-save-notice`
+- `capture-save-notice`
 
 `preview-*` parts are the neutral naming scheme used for both capture and recording dialogs. Existing `capture-*` parts are kept as aliases for compatibility.
 
@@ -187,6 +189,7 @@ For common styling, set CSS custom properties globally (for example on `:root`) 
   --screen-recorder-indicator-ready-color: #63d18c;
   --screen-recorder-indicator-error-color: #ffb54d;
   --screen-recorder-trim-accent-color: #7ec8ff;
+  --screen-recorder-trim-track-background: rgba(255, 255, 255, 0.24);
   --screen-recorder-arrow-color: #ff5f57;
   --screen-recorder-arrow-width: 4px;
   --screen-recorder-text-annotation-color: #ffffff;
@@ -215,6 +218,7 @@ For common styling, set CSS custom properties globally (for example on `:root`) 
   --screen-recorder-palette-14: #ffffff;
   --screen-recorder-palette-15: #90a4ae;
   --screen-recorder-palette-16: #ffb300;
+  --screen-recorder-save-notice-color: #9edbb4;
   --screen-recorder-recording-preview-background: #000;
   --screen-recorder-recording-preview-max-height: 62vh;
 }
@@ -224,7 +228,7 @@ Most useful property groups:
 
 - Typography: `--screen-recorder-font-family`, `--screen-recorder-font-size`, `--screen-recorder-button-font-size`, `--screen-recorder-status-font-size`
 - Spacing/sizing: `--screen-recorder-shell-padding`, `--screen-recorder-shell-gap`, `--screen-recorder-button-padding`, `--screen-recorder-panel-padding`
-- Colors: `--screen-recorder-shell-background`, `--screen-recorder-text-color`, `--screen-recorder-muted-text-color`, `--screen-recorder-record-background`, `--screen-recorder-capture-background`
+- Colors: `--screen-recorder-shell-background`, `--screen-recorder-text-color`, `--screen-recorder-muted-text-color`, `--screen-recorder-record-background`, `--screen-recorder-capture-background`, `--screen-recorder-trim-accent-color`, `--screen-recorder-trim-track-background`, `--screen-recorder-save-notice-color`
 
 ## API Note
 

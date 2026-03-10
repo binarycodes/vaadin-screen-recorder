@@ -113,6 +113,23 @@ class ScreenRecorder extends HTMLElement {
         transition: transform var(--screen-recorder-transition-duration, 140ms) ease, opacity var(--screen-recorder-transition-duration, 140ms) ease, background-color var(--screen-recorder-transition-duration, 140ms) ease;
       }
 
+      vaadin-button[part~="button"]::part(button) {
+        border: 0;
+        border-radius: 999px;
+        padding: var(--screen-recorder-button-padding, 10px 14px);
+        font: inherit;
+        font-size: var(--screen-recorder-button-font-size, 13px);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        min-width: 0;
+        margin: 0;
+        line-height: 1.1;
+      }
+
+      vaadin-button[part~="button"]::part(label) {
+        margin: 0;
+      }
+
       [part~="button"]:hover {
         transform: translateY(-1px);
       }
@@ -181,6 +198,26 @@ class ScreenRecorder extends HTMLElement {
         cursor: pointer;
         background: var(--screen-recorder-toolbar-button-background, #1a2b3d);
         color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
+      }
+
+      vaadin-button[part~="capture-toolbar-button"]::part(button) {
+        border: var(--screen-recorder-toolbar-button-border, 1px solid rgba(255, 255, 255, 0.15));
+        border-radius: var(--screen-recorder-toolbar-button-radius, 8px);
+        width: var(--screen-recorder-toolbar-button-size, 32px);
+        min-width: var(--screen-recorder-toolbar-button-size, 32px);
+        height: var(--screen-recorder-toolbar-button-size, 32px);
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        font-size: var(--screen-recorder-toolbar-button-font-size, 16px);
+        font-weight: 700;
+        line-height: 1;
+        background: var(--screen-recorder-toolbar-button-background, #1a2b3d);
+        color: var(--screen-recorder-toolbar-button-color, #d9e6f4);
+      }
+
+      vaadin-button[part~="capture-toolbar-button"]::part(label) {
+        margin: 0;
       }
 
       [part~="capture-toolbar-button"]:disabled {
@@ -315,12 +352,6 @@ class ScreenRecorder extends HTMLElement {
       [part~="capture-trim-handle"]:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-      }
-
-      [part~="capture-trim-range-label"] {
-        font-size: 12px;
-        color: var(--screen-recorder-muted-text-color, #b9c7d6);
-        min-width: 40px;
       }
 
       [part~="capture-trim-time"] {
@@ -460,6 +491,22 @@ class ScreenRecorder extends HTMLElement {
         font-weight: 700;
         cursor: pointer;
         transition: transform var(--screen-recorder-transition-duration, 140ms) ease, opacity var(--screen-recorder-transition-duration, 140ms) ease, background-color var(--screen-recorder-transition-duration, 140ms) ease;
+      }
+
+      vaadin-button[part~="capture-action-button"]::part(button) {
+        border: 0;
+        border-radius: 999px;
+        padding: var(--screen-recorder-button-padding, 10px 14px);
+        margin: 0;
+        min-width: 0;
+        font: inherit;
+        font-size: var(--screen-recorder-button-font-size, 13px);
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      vaadin-button[part~="capture-action-button"]::part(label) {
+        margin: 0;
       }
 
       [part~="capture-action-button"]:hover {
