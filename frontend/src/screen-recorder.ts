@@ -348,6 +348,13 @@ class ScreenRecorder extends HTMLElement {
         margin-bottom: 14px;
       }
 
+      [part~="capture-save-notice"] {
+        display: none;
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--screen-recorder-save-notice-color, #9edbb4);
+      }
+
       [part~="capture-preview-wrap"] {
         position: relative;
         display: flex;
@@ -1790,6 +1797,9 @@ class ScreenRecorder extends HTMLElement {
     hint.textContent = "Review the recording, then save it.";
     hint.setAttribute("part", "preview-hint capture-hint");
 
+    const saveNotice = document.createElement("div");
+    saveNotice.setAttribute("part", "preview-save-notice capture-save-notice");
+
     const previewWrap = document.createElement("div");
     previewWrap.setAttribute("part", "preview-content-wrap capture-preview-wrap");
 
@@ -1815,7 +1825,7 @@ class ScreenRecorder extends HTMLElement {
     save.setAttribute("part", "preview-action-button capture-action-button preview-save-button capture-save-button");
 
     actions.append(cancel, save);
-    panel.append(heading, toolbar, hint, previewWrap, actions);
+    panel.append(heading, toolbar, hint, saveNotice, previewWrap, actions);
     overlay.append(panel);
 
     const minTrimSpanSeconds = 0.05;
@@ -2019,11 +2029,13 @@ class ScreenRecorder extends HTMLElement {
       cancel.disabled = true;
       startHandle.disabled = true;
       endHandle.disabled = true;
-      const previousLabel = save.textContent;
+      saveNotice.style.display = "none";
+      saveNotice.textContent = "";
       save.textContent = "Saving...";
       video.pause();
 
       let outputBlob: Blob = blob;
+      let savedFullFallback = false;
       const requiresTrim = trimStart > minTrimSpanSeconds || trimEnd < duration - minTrimSpanSeconds;
       if (requiresTrim) {
         try {
@@ -2033,7 +2045,7 @@ class ScreenRecorder extends HTMLElement {
             outputBlob = await this.trimRecordingBlob(blob, trimStart, trimEnd);
           } catch {
             outputBlob = blob;
-            hint.textContent = "Trim export not supported in this browser. Saved full recording.";
+            savedFullFallback = true;
           }
         }
       }
@@ -2041,7 +2053,15 @@ class ScreenRecorder extends HTMLElement {
 
       this.setStatus("downloaded");
       this.scheduleIdleReset();
-      closeOverlay();
+      if (savedFullFallback) {
+        saveNotice.textContent = "Trim unavailable in this browser. Saved full recording.";
+        saveNotice.style.display = "block";
+        window.setTimeout(() => {
+          closeOverlay();
+        }, 950);
+      } else {
+        closeOverlay();
+      }
     };
 
     const onStartHandlePointerDown = (event: PointerEvent) => {
