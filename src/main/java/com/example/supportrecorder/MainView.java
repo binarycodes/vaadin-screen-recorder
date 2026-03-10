@@ -15,26 +15,19 @@ public class MainView extends VerticalLayout {
         setSpacing(true);
         setPadding(true);
 
-        FloatingSupportRecorder recorder = new FloatingSupportRecorder();
+        final ScreenRecorder recorder = ScreenRecorder.create();
 
-        recorder.addValueChangeListener(event -> {
-            String status = event.getValue();
-            switch (status) {
-                case "recording" -> Notification.show("Recording started");
-                case "ready" -> Notification.show("Recording stopped. Ready to download.");
-                case "downloaded" -> Notification.show("Recording downloaded");
-                case "denied" -> Notification.show("Screen capture denied by user");
-                case "error" -> Notification.show("Recording failed");
-                default -> {
-                    // no-op
-                }
-            }
-        });
+        recorder.addRecordingStartedListener(event -> Notification.show("Recording started"));
+        recorder.addRecordingReadyListener(event -> Notification.show("Recording stopped. Ready to download."));
+        recorder.addDownloadCompletedListener(event -> Notification.show("Download completed"));
+        recorder.addCaptureCompletedListener(event -> Notification.show("Capture downloaded"));
+        recorder.addPermissionDeniedListener(event -> Notification.show("Screen capture denied by user"));
+        recorder.addErrorListener(event -> Notification.show("Recording failed"));
 
         add(
-            new H2("Vaadin Support Recording Demo"),
-            new Paragraph("Use the floating recorder in the corner. Drag it anywhere, start or stop capture, then download the finished .webm file."),
-            recorder
+                new H2("Vaadin Support Recording Demo"),
+                new Paragraph("Use the floating recorder in the corner. Drag it anywhere, record a session or capture an image, then download the result."),
+                recorder
         );
     }
 }
