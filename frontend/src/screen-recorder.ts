@@ -1067,7 +1067,8 @@ class ScreenRecorder extends LitElement {
     onEscape: () => void,
     initialFocus: HTMLElement
   ): () => void {
-    const previousFocus = (this.shadow.activeElement ?? document.activeElement) as HTMLElement | null;
+    const root = this.renderRoot instanceof ShadowRoot ? this.renderRoot : this.shadowRoot;
+    const previousFocus = ((root?.activeElement ?? document.activeElement) as HTMLElement | null);
     const headingId = this.nextA11yId("dialog-heading");
     heading.id = headingId;
     panel.setAttribute("role", "dialog");
@@ -1095,7 +1096,7 @@ class ScreenRecorder extends LitElement {
       }
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      const active = (this.shadow.activeElement ?? document.activeElement) as HTMLElement | null;
+      const active = ((root?.activeElement ?? document.activeElement) as HTMLElement | null);
       if (event.shiftKey) {
         if (!active || active === first || !panel.contains(active)) {
           event.preventDefault();
