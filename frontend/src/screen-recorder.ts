@@ -28,6 +28,7 @@ class ScreenRecorder extends HTMLElement {
 
   private previewOverlay: HTMLDivElement | null = null;
   private previewOverlayCleanup: (() => void) | null = null;
+  private a11yIdCounter = 0;
 
   declare recordEnabled: boolean;
   declare captureEnabled: boolean;
@@ -278,6 +279,9 @@ class ScreenRecorder extends HTMLElement {
 
       vaadin-button[part~="preview-color-trigger"]::part(label) {
         margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
       }
 
       [part~="preview-color-swatch"] {
@@ -571,6 +575,9 @@ class ScreenRecorder extends HTMLElement {
     dot.setAttribute("part", "status-indicator");
     this.handle.setAttribute("part", "handle");
     this.statusBadge.setAttribute("part", "status-badge");
+    this.statusBadge.setAttribute("role", "status");
+    this.statusBadge.setAttribute("aria-live", "polite");
+    this.statusBadge.setAttribute("aria-atomic", "true");
     this.recordButton.setAttribute("part", "button record-button");
     this.captureButton.setAttribute("part", "button capture-button");
 
@@ -1089,10 +1096,11 @@ class ScreenRecorder extends HTMLElement {
       const wrapper = document.createElement("div");
       wrapper.setAttribute("part", `preview-color-picker ${pickerParts}`);
 
-      const trigger = document.createElement("button");
-      trigger.type = "button";
+      const trigger = document.createElement("vaadin-button") as VaadinButtonElement;
       trigger.setAttribute("part", "preview-color-trigger");
       trigger.setAttribute("aria-label", `${label} color`);
+      trigger.setAttribute("aria-haspopup", "listbox");
+      trigger.setAttribute("aria-expanded", "false");
 
       const swatch = document.createElement("span");
       swatch.setAttribute("part", "preview-color-swatch");
@@ -1102,6 +1110,11 @@ class ScreenRecorder extends HTMLElement {
 
       const menu = document.createElement("div");
       menu.setAttribute("part", "preview-color-menu");
+      menu.setAttribute("role", "listbox");
+      menu.setAttribute("aria-label", `${label} color options`);
+      const menuId = this.nextA11yId("color-menu");
+      menu.id = menuId;
+      trigger.setAttribute("aria-controls", menuId);
       menu.hidden = true;
 
       const options: HTMLButtonElement[] = [];
@@ -1109,12 +1122,15 @@ class ScreenRecorder extends HTMLElement {
         const option = document.createElement("button");
         option.type = "button";
         option.setAttribute("part", "preview-color-option");
+        option.setAttribute("role", "option");
         option.dataset.color = normalizeColor(color);
         option.style.background = color;
+        option.setAttribute("aria-label", `${label} ${color}`);
         option.addEventListener("click", () => {
           setColor(color);
           sync();
           menu.hidden = true;
+          trigger.setAttribute("aria-expanded", "false");
         });
         options.push(option);
         menu.append(option);
@@ -1125,6 +1141,7 @@ class ScreenRecorder extends HTMLElement {
         swatch.style.background = getColor();
         for (const option of options) {
           option.dataset.selected = option.dataset.color === current ? "true" : "false";
+          option.setAttribute("aria-selected", option.dataset.selected);
         }
       };
       sync();
@@ -1155,6 +1172,8 @@ class ScreenRecorder extends HTMLElement {
     const closeColorMenus = () => {
       arrowColorPicker.menu.hidden = true;
       textColorPicker.menu.hidden = true;
+      arrowColorPicker.trigger.setAttribute("aria-expanded", "false");
+      textColorPicker.trigger.setAttribute("aria-expanded", "false");
     };
 
     const onColorTriggerClick = (menu: HTMLDivElement) => {
@@ -1162,6 +1181,11 @@ class ScreenRecorder extends HTMLElement {
       closeColorMenus();
       if (shouldOpen) {
         menu.hidden = false;
+        if (menu === arrowColorPicker.menu) {
+          arrowColorPicker.trigger.setAttribute("aria-expanded", "true");
+        } else if (menu === textColorPicker.menu) {
+          textColorPicker.trigger.setAttribute("aria-expanded", "true");
+        }
       }
     };
 
@@ -1676,6 +1700,7 @@ class ScreenRecorder extends HTMLElement {
     const closeOverlay = () => {
       this.closePreviewOverlay();
     };
+    const dialogCleanup = this.setupDialogA11y(overlay, panel, heading, hint, () => closeOverlay(), cancel);
 
     const onCancel = () => {
       closeOverlay();
@@ -1807,6 +1832,7 @@ class ScreenRecorder extends HTMLElement {
       cancel.removeEventListener("click", onCancel);
       save.removeEventListener("click", onSave);
       overlay.removeEventListener("pointerdown", onOverlayPointerDown);
+      dialogCleanup();
       removeTextEditor();
       frame.close();
     });
@@ -1928,6 +1954,7 @@ class ScreenRecorder extends HTMLElement {
     const closeOverlay = () => {
       this.closePreviewOverlay();
     };
+    const dialogCleanup = this.setupDialogA11y(overlay, panel, heading, hint, () => closeOverlay(), cancel);
 
     const trimAtClientX = (clientX: number, side: "start" | "end") => {
       if (!metadataReady || duration <= 0) {
@@ -2229,11 +2256,11 @@ class ScreenRecorder extends HTMLElement {
       window.removeEventListener("pointercancel", onSliderPointerUp);
       cancel.removeEventListener("click", onCancel);
       save.removeEventListener("click", onSave);
+      dialogCleanup();
       video.pause();
       video.src = "";
       URL.revokeObjectURL(url);
     });
-
     if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
       onLoadedMetadata();
     }
@@ -2547,6 +2574,94 @@ class ScreenRecorder extends HTMLElement {
   private setControlsVisible(visible: boolean) {
     this.toggleAttribute("overlay-open", !visible);
     this.container.setAttribute("aria-hidden", visible ? "false" : "true");
+  }
+
+  private nextA11yId(prefix: string): string {
+    this.a11yIdCounter += 1;
+    return `screen-recorder-${prefix}-${this.a11yIdCounter}`;
+  }
+
+  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+    const selectors = [
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "a[href]",
+      "[tabindex]:not([tabindex='-1'])",
+      "vaadin-button:not([disabled])"
+    ];
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>(selectors.join(",")));
+    return nodes.filter((node) => {
+      if (node.hidden || node.getAttribute("aria-hidden") === "true") {
+        return false;
+      }
+      if (node.getClientRects().length === 0) {
+        return false;
+      }
+      return node.tabIndex >= 0 || node.tagName.toLowerCase() === "vaadin-button";
+    });
+  }
+
+  private setupDialogA11y(
+    overlay: HTMLDivElement,
+    panel: HTMLElement,
+    heading: HTMLElement,
+    hint: HTMLElement | null,
+    onEscape: () => void,
+    initialFocus: HTMLElement
+  ): () => void {
+    const previousFocus = (this.shadow.activeElement ?? document.activeElement) as HTMLElement | null;
+    const headingId = this.nextA11yId("dialog-heading");
+    heading.id = headingId;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-labelledby", headingId);
+    if (hint) {
+      const hintId = this.nextA11yId("dialog-description");
+      hint.id = hintId;
+      panel.setAttribute("aria-describedby", hintId);
+    }
+    overlay.tabIndex = -1;
+
+    const onOverlayKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onEscape();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const focusables = this.getFocusableElements(panel);
+      if (focusables.length === 0) {
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = (this.shadow.activeElement ?? document.activeElement) as HTMLElement | null;
+      if (event.shiftKey) {
+        if (!active || active === first || !panel.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+      if (!active || active === last || !panel.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    overlay.addEventListener("keydown", onOverlayKeyDown);
+    queueMicrotask(() => initialFocus.focus());
+
+    return () => {
+      overlay.removeEventListener("keydown", onOverlayKeyDown);
+      if (previousFocus && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
   }
 
   private setPreviewOverlay(overlay: HTMLDivElement, cleanup: () => void) {

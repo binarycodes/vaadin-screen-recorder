@@ -116,15 +116,11 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `preview-action-button`
 - `preview-cancel-button`
 - `preview-save-button`
-- `capture-save-button`
 - `preview-save-notice`
-- `capture-save-notice`
-
-`preview-*` parts are the neutral naming scheme used for both capture and recording dialogs. Existing `capture-*` parts are kept as aliases for compatibility.
 
 ## Global Theme Properties
 
-For common styling, set CSS custom properties globally (for example on `:root`) and the addon picks them up without `::part`.
+For common styling, set CSS custom properties globally (for example on `:root`).
 
 ```css
 :root {
@@ -198,4 +194,4 @@ Most useful property groups:
 - Screen and tab capture always require user permission
 - Recording and capture must be started from a user action
 - Browser chooser behavior is controlled by the browser, not by the component
-- Chromium-based browsers are the safest target
+- Chromium-based browsers currently provide the most consistent behavior
