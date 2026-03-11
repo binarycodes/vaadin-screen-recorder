@@ -22,6 +22,8 @@ public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, 
         super("status", RecorderStatus.IDLE.toClientValue(), false);
         getElement().setProperty("recordEnabled", recordEnabled);
         getElement().setProperty("captureEnabled", captureEnabled);
+        getElement().setProperty("floatingEnabled", false);
+        getElement().setProperty("statusVisible", true);
     }
 
     public static ScreenRecorder create() {
@@ -46,6 +48,27 @@ public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, 
 
     public void download() {
         getElement().callJsFunction("download");
+    }
+
+    public void setFloating(boolean floating) {
+        getElement().setProperty("floatingEnabled", floating);
+    }
+
+    public boolean isFloating() {
+        return getElement().getProperty("floatingEnabled", false);
+    }
+
+    public ScreenRecorder asFloating() {
+        setFloating(true);
+        return this;
+    }
+
+    public void setStatusVisible(boolean visible) {
+        getElement().setProperty("statusVisible", visible);
+    }
+
+    public boolean isStatusVisible() {
+        return getElement().getProperty("statusVisible", true);
     }
 
     public Registration addRecordingStartedListener(ComponentEventListener<RecordingStartedEvent> listener) {

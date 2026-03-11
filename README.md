@@ -1,6 +1,6 @@
 # ScreenRecorder
 
-Floating Vaadin component for screen recording and cropped screen capture.
+Vaadin component for screen recording and cropped screen capture.
 
 ## Why Use This Component
 
@@ -27,11 +27,30 @@ ScreenRecorder recorder = ScreenRecorder.create();
 add(recorder);
 ```
 
+Use `asFloating()` to place the recorder as a draggable floating control:
+
+```java
+ScreenRecorder floatingRecorder = ScreenRecorder.create().asFloating();
+add(floatingRecorder);
+```
+
 Use the static factories if you want a smaller surface area:
 
 ```java
 ScreenRecorder recordOnly = ScreenRecorder.createRecorder();
 ScreenRecorder captureOnly = ScreenRecorder.createCapture();
+```
+
+Toggle whether the recorder bar floats over the viewport or renders inline in layout flow:
+
+```java
+recorder.setFloating(true);
+```
+
+Hide or show the status text badge:
+
+```java
+recorder.setStatusVisible(false); // default is true
 ```
 
 ## Events
@@ -66,7 +85,8 @@ recorder.addErrorListener(event -> {
 
 ## Behavior
 
-- The component renders as a floating draggable control bar
+- The component renders inline in normal layout flow by default
+- Floating mode can be enabled to render a draggable control bar
 - Stopping a recording opens a preview dialog with playback and a `Save recording` action
 - Capturing opens a preview dialog with optional crop mode and a `Save capture` action
 - Recording downloads as `recording-session-yyyymmdd-hhmmss.webm`
