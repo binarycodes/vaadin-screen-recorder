@@ -1,6 +1,17 @@
 # ScreenRecorder
 
-Floating Vaadin component for screen recording and cropped screen capture.
+Vaadin component for screen recording and cropped screen capture.
+
+## Why Use This Component
+
+Operating system capture tools are useful for ad-hoc recording, but they are external to your application workflow.  
+This component provides an in-app capture flow with:
+
+- Built-in preview, annotation, and trim steps before saving
+- Server-side event hooks for recording and capture lifecycle states
+- Consistent, themeable UI behavior across users and environments
+
+Use it when screen capture needs to be part of an application process (for example support, QA, onboarding, or incident reporting), not just a standalone file on the user’s machine.
 
 ## Requirements
 
@@ -16,11 +27,30 @@ ScreenRecorder recorder = ScreenRecorder.create();
 add(recorder);
 ```
 
+Use `asFloating()` to place the recorder as a draggable floating control:
+
+```java
+ScreenRecorder floatingRecorder = ScreenRecorder.create().asFloating();
+add(floatingRecorder);
+```
+
 Use the static factories if you want a smaller surface area:
 
 ```java
 ScreenRecorder recordOnly = ScreenRecorder.createRecorder();
 ScreenRecorder captureOnly = ScreenRecorder.createCapture();
+```
+
+Toggle whether the recorder bar floats over the viewport or renders inline in layout flow:
+
+```java
+recorder.setFloating(true);
+```
+
+Hide or show the status text badge:
+
+```java
+recorder.setStatusVisible(false); // default is true
 ```
 
 ## Events
@@ -55,7 +85,8 @@ recorder.addErrorListener(event -> {
 
 ## Behavior
 
-- The component renders as a floating draggable control bar
+- The component renders inline in normal layout flow by default
+- Floating mode can be enabled to render a draggable control bar
 - Stopping a recording opens a preview dialog with playback and a `Save recording` action
 - Capturing opens a preview dialog with optional crop mode and a `Save capture` action
 - Recording downloads as `recording-session-yyyymmdd-hhmmss.webm`
@@ -74,98 +105,53 @@ Style the Shadow DOM via `::part(...)` on `screen-recorder`:
 - `record-button`
 - `capture-button`
 - `preview-overlay`
-- `capture-overlay`
 - `preview-panel`
-- `capture-panel`
 - `preview-toolbar`
-- `capture-toolbar`
 - `preview-recording-toolbar`
-- `capture-recording-toolbar`
 - `preview-toolbar-button`
-- `capture-toolbar-button`
 - `preview-crop-button`
-- `capture-crop-button`
 - `preview-arrow-button`
-- `capture-arrow-button`
 - `preview-arrow-color-picker`
-- `capture-arrow-color-picker`
 - `preview-text-button`
-- `capture-text-button`
 - `preview-text-color-picker`
-- `capture-text-color-picker`
 - `preview-color-picker`
-- `capture-color-picker`
 - `preview-color-trigger`
-- `capture-color-trigger`
 - `preview-color-swatch`
-- `capture-color-swatch`
 - `preview-color-menu`
-- `capture-color-menu`
 - `preview-color-option`
-- `capture-color-option`
 - `preview-trim-editor`
-- `capture-trim-editor`
 - `preview-trim-slider-wrap`
-- `capture-trim-slider-wrap`
 - `preview-trim-track`
-- `capture-trim-track`
 - `preview-trim-active`
-- `capture-trim-active`
 - `preview-trim-handle`
-- `capture-trim-handle`
 - `preview-trim-start`
-- `capture-trim-start`
 - `preview-trim-end`
-- `capture-trim-end`
 - `preview-trim-time`
-- `capture-trim-time`
 - `preview-trim-start-time`
-- `capture-trim-start-time`
 - `preview-trim-end-time`
-- `capture-trim-end-time`
 - `preview-text-size-select`
-- `capture-text-size-select`
 - `preview-undo-button`
-- `capture-undo-button`
 - `preview-heading`
-- `capture-heading`
 - `preview-hint`
-- `capture-hint`
 - `preview-content-wrap`
-- `capture-preview-wrap`
 - `preview-stage`
-- `capture-preview-stage`
 - `preview-media`
-- `capture-preview`
 - `recording-preview`
 - `preview-selection`
-- `capture-selection`
 - `preview-annotations`
-- `capture-annotations`
 - `preview-arrow`
-- `capture-arrow`
 - `preview-arrow-head`
-- `capture-arrow-head`
 - `preview-text`
-- `capture-text`
 - `preview-text-editor`
-- `capture-text-editor`
 - `preview-actions`
-- `capture-actions`
 - `preview-action-button`
-- `capture-action-button`
 - `preview-cancel-button`
-- `capture-cancel-button`
 - `preview-save-button`
-- `capture-save-button`
 - `preview-save-notice`
-- `capture-save-notice`
-
-`preview-*` parts are the neutral naming scheme used for both capture and recording dialogs. Existing `capture-*` parts are kept as aliases for compatibility.
 
 ## Global Theme Properties
 
-For common styling, set CSS custom properties globally (for example on `:root`) and the addon picks them up without `::part`.
+For common styling, set CSS custom properties globally (for example on `:root`).
 
 ```css
 :root {
@@ -239,4 +225,4 @@ Most useful property groups:
 - Screen and tab capture always require user permission
 - Recording and capture must be started from a user action
 - Browser chooser behavior is controlled by the browser, not by the component
-- Chromium-based browsers are the safest target
+- Chromium-based browsers currently provide the most consistent behavior
