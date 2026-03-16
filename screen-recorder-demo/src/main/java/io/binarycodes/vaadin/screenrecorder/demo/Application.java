@@ -1,4 +1,4 @@
-package com.example.supportrecorder;
+package io.binarycodes.vaadin.screenrecorder.demo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

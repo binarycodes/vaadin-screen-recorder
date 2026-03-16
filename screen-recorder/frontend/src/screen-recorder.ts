@@ -1,5 +1,31 @@
+/*-
+ * #%L
+ * Screen Recorder
+ * %%
+ * Copyright (C) 2025 - 2026 binarycodes
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
 import "@vaadin/button";
 import { LitElement, css, html, unsafeCSS } from "lit";
+
+type ExtendedDisplayMediaStreamOptions = DisplayMediaStreamOptions & {
+  selfBrowserSurface?: "include" | "exclude";
+  surfaceSwitching?: "include" | "exclude";
+  monitorTypeSurfaces?: "include" | "exclude";
+  systemAudio?: "include" | "exclude";
+};
 import { openCaptureOverlay } from "./screen-recorder-capture-overlay";
 import { openRecordingOverlay } from "./screen-recorder-recording-overlay";
 import { SCREEN_RECORDER_CSS } from "./screen-recorder-styles";
@@ -168,12 +194,7 @@ class ScreenRecorder extends LitElement {
     try {
       this.setStatus("idle");
 
-      const captureOptions: DisplayMediaStreamOptions & {
-        selfBrowserSurface?: "include" | "exclude";
-        surfaceSwitching?: "include" | "exclude";
-        monitorTypeSurfaces?: "include" | "exclude";
-        systemAudio?: "include" | "exclude";
-      } = {
+      const captureOptions: ExtendedDisplayMediaStreamOptions = {
         video: { frameRate: 30 },
         audio: true,
         selfBrowserSurface: "include",
@@ -279,12 +300,7 @@ class ScreenRecorder extends LitElement {
     let captureStream: MediaStream | null = null;
 
     try {
-      const captureOptions: DisplayMediaStreamOptions & {
-        selfBrowserSurface?: "include" | "exclude";
-        surfaceSwitching?: "include" | "exclude";
-        monitorTypeSurfaces?: "include" | "exclude";
-        systemAudio?: "include" | "exclude";
-      } = {
+      const captureOptions: ExtendedDisplayMediaStreamOptions = {
         video: { frameRate: 30 },
         audio: false,
         selfBrowserSurface: "include",
@@ -941,6 +957,95 @@ class ScreenRecorder extends LitElement {
     container.style.left = "";
     container.style.top = "";
     container.style.right = "";
+  }
+
+  private nextA11yId(prefix: string): string {
+    this.a11yIdCounter += 1;
+    return `screen-recorder-${prefix}-${this.a11yIdCounter}`;
+  }
+
+  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+    const selectors = [
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "a[href]",
+      "[tabindex]:not([tabindex='-1'])",
+      "vaadin-button:not([disabled])"
+    ];
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>(selectors.join(",")));
+    return nodes.filter((node) => {
+      if (node.hidden || node.getAttribute("aria-hidden") === "true") {
+        return false;
+      }
+      if (node.getClientRects().length === 0) {
+        return false;
+      }
+      return node.tabIndex >= 0 || node.tagName.toLowerCase() === "vaadin-button";
+    });
+  }
+
+  private setupDialogA11y(
+    overlay: HTMLDivElement,
+    panel: HTMLElement,
+    heading: HTMLElement,
+    hint: HTMLElement | null,
+    onEscape: () => void,
+    initialFocus: HTMLElement
+  ): () => void {
+    const root = this.renderRoot instanceof ShadowRoot ? this.renderRoot : this.shadowRoot;
+    const previousFocus = ((root?.activeElement ?? document.activeElement) as HTMLElement | null);
+    const headingId = this.nextA11yId("dialog-heading");
+    heading.id = headingId;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-labelledby", headingId);
+    if (hint) {
+      const hintId = this.nextA11yId("dialog-description");
+      hint.id = hintId;
+      panel.setAttribute("aria-describedby", hintId);
+    }
+    overlay.tabIndex = -1;
+
+    const onOverlayKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onEscape();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const focusables = this.getFocusableElements(panel);
+      if (focusables.length === 0) {
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = ((root?.activeElement ?? document.activeElement) as HTMLElement | null);
+      if (event.shiftKey) {
+        if (!active || active === first || !panel.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+      if (!active || active === last || !panel.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    overlay.addEventListener("keydown", onOverlayKeyDown);
+    queueMicrotask(() => initialFocus.focus());
+
+    return () => {
+      overlay.removeEventListener("keydown", onOverlayKeyDown);
+      if (previousFocus && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
   }
 
   private nextA11yId(prefix: string): string {

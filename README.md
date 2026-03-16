@@ -13,6 +13,17 @@ This component provides an in-app capture flow with:
 
 Use it when screen capture needs to be part of an application process (for example support, QA, onboarding, or incident reporting), not just a standalone file on the user’s machine.
 
+## Why Use This Component
+
+Operating system capture tools are useful for ad-hoc recording, but they are external to your application workflow.  
+This component provides an in-app capture flow with:
+
+- Built-in preview, annotation, and trim steps before saving
+- Server-side event hooks for recording and capture lifecycle states
+- Consistent, themeable UI behavior across users and environments
+
+Use it when screen capture needs to be part of an application process (for example support, QA, onboarding, or incident reporting), not just a standalone file on the user’s machine.
+
 ## Requirements
 
 - Java 21+

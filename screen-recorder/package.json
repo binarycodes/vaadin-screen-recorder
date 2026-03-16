@@ -1,0 +1,17 @@
+{
+  "name": "@binarycodes/vaadin-screen-recorder",
+  "version": "1.0.0",
+  "description": "Vaadin Flow screen recorder web component",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./frontend/src/screen-recorder.ts",
+  "files": ["frontend/src"],
+  "devDependencies": {
+    "@web/dev-server-esbuild": "latest",
+    "@web/test-runner": "^0.20.2",
+    "@web/test-runner-playwright": "^0.11.1",
+    "lit": "3.3.2",
+    "playwright": "^1.54.2",
+    "typescript": "5.9.3"
+  }
+}
