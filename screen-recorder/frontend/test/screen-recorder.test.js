@@ -535,4 +535,102 @@ describe('screen-recorder', () => {
 
     assert(calls === 0, 'download should no-op when recording is disabled');
   });
+
+  it('stops stream tracks when disconnected during an active recording', async () => {
+    const stream = createStream();
+    setGetDisplayMedia(async () => stream);
+
+    const element = document.createElement('screen-recorder');
+    element.openRecordingOverlay = async () => {};
+    document.body.append(element);
+    await waitForRender(element);
+
+    await element.start();
+    assert(element.getAttribute('status') === 'recording', 'expected recording status before disconnect');
+
+    element.remove();
+
+    assert(stream._videoTrack.stopped, 'video track should be stopped on disconnect');
+    assert(stream._audioTrack.stopped, 'audio track should be stopped on disconnect');
+  });
+
+  describe('formatSeconds', () => {
+    let element;
+
+    beforeEach(async () => {
+      element = document.createElement('screen-recorder');
+      document.body.append(element);
+      await waitForRender(element);
+    });
+
+    afterEach(() => {
+      element.remove();
+    });
+
+    it('formats zero as 0:00', () => {
+      assert(element['formatSeconds'](0) === '0:00', 'zero should format as 0:00');
+    });
+
+    it('floors sub-second values to 0:00', () => {
+      assert(element['formatSeconds'](0.9) === '0:00', 'sub-second should floor to 0:00');
+    });
+
+    it('pads single-digit seconds', () => {
+      assert(element['formatSeconds'](5) === '0:05', '5s should pad to 0:05');
+    });
+
+    it('formats seconds below a minute', () => {
+      assert(element['formatSeconds'](59) === '0:59', '59s should format as 0:59');
+    });
+
+    it('formats exactly one minute', () => {
+      assert(element['formatSeconds'](60) === '1:00', '60s should format as 1:00');
+    });
+
+    it('formats minutes and seconds', () => {
+      assert(element['formatSeconds'](90) === '1:30', '90s should format as 1:30');
+    });
+
+    it('formats large values beyond one hour', () => {
+      assert(element['formatSeconds'](3661) === '61:01', '3661s should format as 61:01');
+    });
+
+    it('returns 0:00 for negative values', () => {
+      assert(element['formatSeconds'](-1) === '0:00', 'negative should return 0:00');
+    });
+
+    it('returns 0:00 for Infinity', () => {
+      assert(element['formatSeconds'](Infinity) === '0:00', 'Infinity should return 0:00');
+    });
+
+    it('returns 0:00 for NaN', () => {
+      assert(element['formatSeconds'](NaN) === '0:00', 'NaN should return 0:00');
+    });
+  });
+
+  describe('buildFilename', () => {
+    let element;
+
+    beforeEach(async () => {
+      element = document.createElement('screen-recorder');
+      document.body.append(element);
+      await waitForRender(element);
+    });
+
+    afterEach(() => {
+      element.remove();
+    });
+
+    it('produces the correct filename format', () => {
+      const date = new Date(2025, 2, 15, 10, 5, 3); // 2025-03-15 10:05:03 local
+      const filename = element['buildFilename'](date);
+      assert(filename === 'recording-session-20250315-100503.webm', `unexpected filename: ${filename}`);
+    });
+
+    it('zero-pads single-digit month, day, and time components', () => {
+      const date = new Date(2025, 0, 1, 1, 2, 3); // 2025-01-01 01:02:03 local
+      const filename = element['buildFilename'](date);
+      assert(filename === 'recording-session-20250101-010203.webm', `unexpected filename: ${filename}`);
+    });
+  });
 });

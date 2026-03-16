@@ -4,7 +4,7 @@ Vaadin component for screen recording and cropped screen capture.
 
 ## Why Use This Component
 
-Operating system capture tools are useful for ad-hoc recording, but they are external to your application workflow.  
+Operating system capture tools are useful for ad-hoc recording, but they are external to your application workflow.
 This component provides an in-app capture flow with:
 
 - Built-in preview, annotation, and trim steps before saving
@@ -13,16 +13,17 @@ This component provides an in-app capture flow with:
 
 Use it when screen capture needs to be part of an application process (for example support, QA, onboarding, or incident reporting), not just a standalone file on the user’s machine.
 
-## Why Use This Component
+## Installation
 
-Operating system capture tools are useful for ad-hoc recording, but they are external to your application workflow.  
-This component provides an in-app capture flow with:
+Add the dependency to your project:
 
-- Built-in preview, annotation, and trim steps before saving
-- Server-side event hooks for recording and capture lifecycle states
-- Consistent, themeable UI behavior across users and environments
-
-Use it when screen capture needs to be part of an application process (for example support, QA, onboarding, or incident reporting), not just a standalone file on the user’s machine.
+```xml
+<dependency>
+    <groupId>io.binarycodes.vaadin</groupId>
+    <artifactId>screen-recorder</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
 
 ## Requirements
 
