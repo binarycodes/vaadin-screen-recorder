@@ -1048,6 +1048,95 @@ class ScreenRecorder extends LitElement {
     };
   }
 
+  private nextA11yId(prefix: string): string {
+    this.a11yIdCounter += 1;
+    return `screen-recorder-${prefix}-${this.a11yIdCounter}`;
+  }
+
+  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+    const selectors = [
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "a[href]",
+      "[tabindex]:not([tabindex='-1'])",
+      "vaadin-button:not([disabled])"
+    ];
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>(selectors.join(",")));
+    return nodes.filter((node) => {
+      if (node.hidden || node.getAttribute("aria-hidden") === "true") {
+        return false;
+      }
+      if (node.getClientRects().length === 0) {
+        return false;
+      }
+      return node.tabIndex >= 0 || node.tagName.toLowerCase() === "vaadin-button";
+    });
+  }
+
+  private setupDialogA11y(
+    overlay: HTMLDivElement,
+    panel: HTMLElement,
+    heading: HTMLElement,
+    hint: HTMLElement | null,
+    onEscape: () => void,
+    initialFocus: HTMLElement
+  ): () => void {
+    const root = this.renderRoot instanceof ShadowRoot ? this.renderRoot : this.shadowRoot;
+    const previousFocus = ((root?.activeElement ?? document.activeElement) as HTMLElement | null);
+    const headingId = this.nextA11yId("dialog-heading");
+    heading.id = headingId;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-labelledby", headingId);
+    if (hint) {
+      const hintId = this.nextA11yId("dialog-description");
+      hint.id = hintId;
+      panel.setAttribute("aria-describedby", hintId);
+    }
+    overlay.tabIndex = -1;
+
+    const onOverlayKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onEscape();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const focusables = this.getFocusableElements(panel);
+      if (focusables.length === 0) {
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = ((root?.activeElement ?? document.activeElement) as HTMLElement | null);
+      if (event.shiftKey) {
+        if (!active || active === first || !panel.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+      if (!active || active === last || !panel.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    overlay.addEventListener("keydown", onOverlayKeyDown);
+    queueMicrotask(() => initialFocus.focus());
+
+    return () => {
+      overlay.removeEventListener("keydown", onOverlayKeyDown);
+      if (previousFocus && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
+  }
+
   private setPreviewOverlay(overlay: HTMLDivElement, cleanup: () => void) {
     this.closePreviewOverlay();
     this.setControlsVisible(false);
