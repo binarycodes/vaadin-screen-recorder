@@ -6,6 +6,10 @@
   "type": "module",
   "main": "./frontend/src/screen-recorder.ts",
   "files": ["frontend/src"],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json --noEmit && wtr --config web-test-runner.config.mjs"
+  },
   "devDependencies": {
     "@web/dev-server-esbuild": "latest",
     "@web/test-runner": "^0.20.2",
