@@ -1,0 +1,81 @@
+name: verify
+
+on:
+  push:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  addon:
+    name: addon build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: build and install addon
+        working-directory: screen-recorder
+        run: mvn --batch-mode verify install
+
+      - name: cache installed addon artifact
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/io/binarycodes
+          key: addon-${{ github.sha }}
+
+  npm-test:
+    name: npm tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: screen-recorder/package-lock.json
+
+      - name: install dependencies
+        working-directory: screen-recorder
+        run: npm ci
+
+      - name: install playwright browsers
+        working-directory: screen-recorder
+        run: npx playwright install chromium --with-deps
+
+      - name: run tests
+        working-directory: screen-recorder
+        run: npm test
+
+  demo:
+    name: demo build
+    needs: addon
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: restore installed addon artifact
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository/io/binarycodes
+          key: addon-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: build demo
+        working-directory: screen-recorder-demo
+        run: mvn --batch-mode verify

@@ -225,7 +225,8 @@
             <id>sign</id>
             <activation>
                 <property>
-                    <name>env.CI</name>
+                    <name>env.SIGN_ARTIFACTS</name>
+                    <value>true</value>
                 </property>
             </activation>
             <build>
