@@ -2,11 +2,21 @@
 target/
 node_modules/
 
-/src/main/bundles/
-frontend/generated
+**/src/main/bundles/
+**/frontend/generated
 
 *.md
 !README.md
 vite.*
 types.*
 tsconfig.*
+.DS_Store
+.claude
+
+screen-recorder-demo/node_modules/
+screen-recorder-demo/frontend/generated/
+screen-recorder-demo/src/main/bundles/
+screen-recorder-demo/vite.*
+screen-recorder-demo/tsconfig.*
+screen-recorder-demo/types.*
+screen-recorder-demo/package*.json

@@ -1,4 +1,4 @@
-package com.example.supportrecorder;
+package io.binarycodes.vaadin.screenrecorder;
 
 public enum RecorderStatus {
     IDLE("idle"),

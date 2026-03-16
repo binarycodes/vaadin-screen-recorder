@@ -1,5 +1,12 @@
 import "@vaadin/button";
 import { LitElement, css, html, unsafeCSS } from "lit";
+
+type ExtendedDisplayMediaStreamOptions = DisplayMediaStreamOptions & {
+  selfBrowserSurface?: "include" | "exclude";
+  surfaceSwitching?: "include" | "exclude";
+  monitorTypeSurfaces?: "include" | "exclude";
+  systemAudio?: "include" | "exclude";
+};
 import { openCaptureOverlay } from "./screen-recorder-capture-overlay";
 import { openRecordingOverlay } from "./screen-recorder-recording-overlay";
 import { SCREEN_RECORDER_CSS } from "./screen-recorder-styles";
@@ -168,12 +175,7 @@ class ScreenRecorder extends LitElement {
     try {
       this.setStatus("idle");
 
-      const captureOptions: DisplayMediaStreamOptions & {
-        selfBrowserSurface?: "include" | "exclude";
-        surfaceSwitching?: "include" | "exclude";
-        monitorTypeSurfaces?: "include" | "exclude";
-        systemAudio?: "include" | "exclude";
-      } = {
+      const captureOptions: ExtendedDisplayMediaStreamOptions = {
         video: { frameRate: 30 },
         audio: true,
         selfBrowserSurface: "include",
@@ -279,12 +281,7 @@ class ScreenRecorder extends LitElement {
     let captureStream: MediaStream | null = null;
 
     try {
-      const captureOptions: DisplayMediaStreamOptions & {
-        selfBrowserSurface?: "include" | "exclude";
-        surfaceSwitching?: "include" | "exclude";
-        monitorTypeSurfaces?: "include" | "exclude";
-        systemAudio?: "include" | "exclude";
-      } = {
+      const captureOptions: ExtendedDisplayMediaStreamOptions = {
         video: { frameRate: 30 },
         audio: false,
         selfBrowserSurface: "include",

@@ -130,6 +130,7 @@ export async function openRecordingOverlay(
   let trimLoopRaf: number | null = null;
   const trimEpsilon = 0.02;
   let trimInitialized = false;
+  let saveCloseTimer: number | null = null;
 
   const updateTrimUi = () => {
     startTime.textContent = host.formatSeconds(trimStart);
@@ -147,6 +148,10 @@ export async function openRecordingOverlay(
   };
 
   const closeOverlay = () => {
+    if (saveCloseTimer !== null) {
+      window.clearTimeout(saveCloseTimer);
+      saveCloseTimer = null;
+    }
     host.closePreviewOverlay();
   };
   const dialogCleanup = host.setupDialogA11y(overlay, panel, heading, hint, () => closeOverlay(), cancel);
@@ -330,10 +335,12 @@ export async function openRecordingOverlay(
     if (requiresTrim) {
       try {
         outputBlob = await host.trimRecordingFromElement(video, trimStart, trimEnd, blob.type || "video/webm");
-      } catch {
+      } catch (e) {
+        console.warn("trimRecordingFromElement failed, trying fallback:", e);
         try {
           outputBlob = await host.trimRecordingBlob(blob, trimStart, trimEnd);
-        } catch {
+        } catch (e2) {
+          console.warn("trimRecordingBlob also failed, saving full recording:", e2);
           outputBlob = blob;
           savedFullFallback = true;
         }
@@ -346,7 +353,8 @@ export async function openRecordingOverlay(
     if (savedFullFallback) {
       saveNotice.textContent = "Trim unavailable in this browser. Saved full recording.";
       saveNotice.style.display = "block";
-      window.setTimeout(() => {
+      saveCloseTimer = window.setTimeout(() => {
+        saveCloseTimer = null;
         closeOverlay();
       }, 950);
     } else {

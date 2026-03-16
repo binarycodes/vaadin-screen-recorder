@@ -1,0 +1,32 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 http://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>directory</id>
+    <formats>
+        <format>zip</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+
+    <files>
+        <file>
+            <source>${project.build.directory}/${project.artifactId}-${project.version}.jar</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>${project.build.directory}/${project.artifactId}-${project.version}-sources.jar</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>${project.build.directory}/${project.artifactId}-${project.version}-javadoc.jar</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>${basedir}/../README.md</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+        <file>
+            <source>${basedir}/../LICENSE</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
+    </files>
+</assembly>

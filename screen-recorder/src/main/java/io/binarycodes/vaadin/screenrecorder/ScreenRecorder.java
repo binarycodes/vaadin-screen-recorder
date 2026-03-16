@@ -1,4 +1,4 @@
-package com.example.supportrecorder;
+package io.binarycodes.vaadin.screenrecorder;
 
 import com.vaadin.flow.component.AbstractSinglePropertyField;
 import com.vaadin.flow.component.ClientCallable;
@@ -98,12 +98,16 @@ public class ScreenRecorder extends AbstractSinglePropertyField<ScreenRecorder, 
     @ClientCallable
     private void setStatusFromClient(String status) {
         setModelValue(status, true);
-        final RecorderStatus recorderStatus = RecorderStatus.fromClientValue(status);
-        fireStatusEvent(recorderStatus);
+        try {
+            fireStatusEvent(RecorderStatus.fromClientValue(status));
+        } catch (IllegalArgumentException e) {
+            fireStatusEvent(RecorderStatus.ERROR);
+        }
     }
 
     public RecorderStatus getStatus() {
-        return RecorderStatus.fromClientValue(getValue());
+        final String value = getValue();
+        return value != null ? RecorderStatus.fromClientValue(value) : RecorderStatus.IDLE;
     }
 
     private void fireStatusEvent(RecorderStatus status) {
